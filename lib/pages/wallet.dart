@@ -157,7 +157,7 @@ class _WalletPageState extends State<WalletPage> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: AppColors.mediumGray.withOpacity(0.3),
+                    color: AppColors.mediumGray.withValues(alpha: 0.3),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.person, color: AppColors.darkGray),
@@ -226,7 +226,7 @@ class _WalletPageState extends State<WalletPage> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
@@ -352,7 +352,7 @@ class _WalletPageState extends State<WalletPage> {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         shape: BoxShape.circle,
       ),
       child: Icon(icon, color: color, size: 20),
@@ -373,7 +373,7 @@ class _WalletPageState extends State<WalletPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.teal.withOpacity(0.1),
+              color: AppColors.teal.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -449,7 +449,10 @@ class _WalletPageState extends State<WalletPage> {
             color: AppColors.white,
             borderRadius: AppStyles.cardRadius,
             boxShadow: [AppStyles.cardShadow],
-            border: Border.all(color: profileColor.withOpacity(0.3), width: 1),
+            border: Border.all(
+              color: profileColor.withValues(alpha: 0.3),
+              width: 1,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -458,7 +461,7 @@ class _WalletPageState extends State<WalletPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: profileColor.withOpacity(0.1),
+                  color: profileColor.withValues(alpha: 0.1),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(16),
                     topRight: Radius.circular(16),

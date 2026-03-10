@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'terms.dart';
 import 'wallet.dart';
 import 'profile.dart';
-import 'ai.dart';
+import '../services/api_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -16,53 +16,17 @@ class _HomePageState extends State<HomePage> {
   String savedName = '';
   final TextEditingController _nameController = TextEditingController();
   bool _showGoalDetails = false;
+  bool _isLoading = true;
 
-  // Financial values (used in wallet section)
-  double monthlyIncome = 8500;
-  double monthlyExpense = 3250;
-  double monthlySavings = 5250;
+  // Financial values (fetched from API)
+  double monthlyIncome = 0.0;
+  double monthlyExpense = 0.0;
+  double monthlySavings = 0.0;
 
-  // Detailed transactions
-  List<Map<String, dynamic>> incomeTransactions = [
-    {'amount': 5000, 'description': 'Maaş', 'date': 'Bu Ay'},
-    {'amount': 1500, 'description': 'Ek gelir', 'date': 'Bu Ay'},
-    {'amount': 2000, 'description': 'Bonus', 'date': 'Geçen Ay'},
-  ];
-
-  List<Map<String, dynamic>> expenseTransactions = [
-    {'amount': 1200, 'description': 'Kira', 'date': 'Bu Ay'},
-    {'amount': 450, 'description': 'Yemek', 'date': 'Bu Ay'},
-    {'amount': 600, 'description': 'Ulaşım', 'date': 'Bu Ay'},
-    {'amount': 1000, 'description': 'Alışveriş', 'date': 'Geçen Ay'},
-  ];
-
-  // Transaction tracking
-  List<Map<String, dynamic>> activities = [
-    {
-      'date': DateTime(DateTime.now().year, DateTime.now().month, 15),
-      'type': 'gelir',
-      'amount': 5000,
-      'description': 'Maaş',
-    },
-    {
-      'date': DateTime(DateTime.now().year, DateTime.now().month, 10),
-      'type': 'gider',
-      'amount': 1200,
-      'description': 'Kira',
-    },
-    {
-      'date': DateTime(DateTime.now().year, DateTime.now().month, 20),
-      'type': 'gider',
-      'amount': 450,
-      'description': 'Yemek',
-    },
-    {
-      'date': DateTime(DateTime.now().year, DateTime.now().month, 25),
-      'type': 'gelir',
-      'amount': 1500,
-      'description': 'Ek gelir',
-    },
-  ]; // [{date, type, amount, description}]
+  // Detailed transactions (fetched from API)
+  List<Map<String, dynamic>> incomeTransactions = [];
+  List<Map<String, dynamic>> expenseTransactions = [];
+  List<Map<String, dynamic>> activities = [];
 
   // Goal tracking variables
   double goalAmount = 10000;
@@ -79,12 +43,63 @@ class _HomePageState extends State<HomePage> {
   };
 
   // Investment test variables
-  String? investmentProfile; // 'korumacı', 'dengeli', 'agresif'
+  String? investmentProfile;
 
   @override
   void initState() {
     super.initState();
     _nameController.text = savedName;
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Load financial summary
+      final financialData = await ApiService.getFinancialSummary();
+      setState(() {
+        monthlyIncome = financialData['monthly_income'] ?? 0.0;
+        monthlyExpense = financialData['monthly_expense'] ?? 0.0;
+        monthlySavings = financialData['monthly_savings'] ?? 0.0;
+      });
+
+      // Load transactions
+      final transactionsData = await ApiService.getTransactions();
+      setState(() {
+        incomeTransactions = List<Map<String, dynamic>>.from(
+          transactionsData['income'] ?? [],
+        );
+        expenseTransactions = List<Map<String, dynamic>>.from(
+          transactionsData['expenses'] ?? [],
+        );
+        activities = List<Map<String, dynamic>>.from(
+          transactionsData['activities'] ?? [],
+        );
+      });
+
+      // Load investment profile
+      final profileData = await ApiService.getInvestmentProfile();
+      setState(() {
+        investmentProfile = profileData['profile'];
+      });
+
+      // Load user profile
+      final userData = await ApiService.getUserProfile();
+      setState(() {
+        savedName = userData['name'] ?? '';
+        _nameController.text = savedName;
+      });
+    } catch (e) {
+      // Handle error - for now, keep default values
+      print('Error loading data: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -97,7 +112,9 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('GençCüzdan')),
-      body: _buildBody(),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _buildBody(),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -111,10 +128,6 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.book_rounded),
             label: 'Terimler',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.smart_toy_rounded),
-            label: 'AI',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_3_rounded),
@@ -163,15 +176,22 @@ class _HomePageState extends State<HomePage> {
       case 2:
         return const TermsPage();
       case 3:
-        return _buildAISection();
-      case 4:
         return ProfilePage(
           savedName: savedName,
           nameController: _nameController,
-          onNameSaved: (name) {
-            setState(() {
-              savedName = name;
-            });
+          onNameSaved: (name) async {
+            try {
+              await ApiService.updateUserProfile({'name': name});
+              setState(() {
+                savedName = name;
+              });
+            } catch (e) {
+              // Handle error - still update locally for now
+              print('Error saving user profile: $e');
+              setState(() {
+                savedName = name;
+              });
+            }
           },
           onLogout: () {
             Navigator.of(
@@ -1296,10 +1316,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildAISection() {
-    return const AIPage();
-  }
-
   void _startInvestmentTest() {
     setState(() {
       investmentProfile = null;
@@ -1307,11 +1323,23 @@ class _HomePageState extends State<HomePage> {
     showDialog(
       context: context,
       builder: (context) => InvestmentTestDialog(
-        onTestComplete: (profile) {
-          setState(() {
-            investmentProfile = profile;
-          });
-          Navigator.pop(context);
+        onTestComplete: (profile) async {
+          final navigatorContext = context; // Store context before async
+          try {
+            await ApiService.saveInvestmentProfile(profile);
+            setState(() {
+              investmentProfile = profile;
+            });
+          } catch (e) {
+            // Handle error - still update locally for now
+            print('Error saving investment profile: $e');
+            setState(() {
+              investmentProfile = profile;
+            });
+          }
+          if (mounted && navigatorContext.mounted) {
+            Navigator.pop(navigatorContext);
+          }
         },
       ),
     );

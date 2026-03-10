@@ -5,10 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   static const String baseUrl = 'http://100.68.176.40:8000';
 
-  static const Map<String, String> _headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  static Future<Map<String, String>> _getHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('user_id');
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (userId != null) 'X-User-Id': userId.toString(),
+    };
+  }
 
   // ── Local user storage (name, email) ─────────────────────────────────────
 
@@ -39,9 +44,10 @@ class ApiService {
 
   static Future<Map<String, dynamic>> get(String endpoint) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.get(
         Uri.parse('$baseUrl$endpoint'),
-        headers: _headers,
+        headers: headers,
       );
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -55,9 +61,10 @@ class ApiService {
 
   static Future<List<dynamic>> getList(String endpoint) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.get(
         Uri.parse('$baseUrl$endpoint'),
-        headers: _headers,
+        headers: headers,
       );
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -74,9 +81,10 @@ class ApiService {
     Map<String, dynamic> data,
   ) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl$endpoint'),
-        headers: _headers,
+        headers: headers,
         body: json.encode(data),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -95,9 +103,10 @@ class ApiService {
     Map<String, dynamic> data,
   ) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.put(
         Uri.parse('$baseUrl$endpoint'),
-        headers: _headers,
+        headers: headers,
         body: json.encode(data),
       );
       if (response.statusCode == 200) {
@@ -112,9 +121,10 @@ class ApiService {
 
   static Future<void> delete(String endpoint) async {
     try {
+      final headers = await _getHeaders();
       final response = await http.delete(
         Uri.parse('$baseUrl$endpoint'),
-        headers: _headers,
+        headers: headers,
       );
       if (response.statusCode != 200 && response.statusCode != 204) {
         throw Exception('DELETE $endpoint failed: ${response.statusCode}');
@@ -212,4 +222,17 @@ class ApiService {
   ) async {
     return await put('/api/user/profile', profile);
   }
+
+  // ── Goals ─────────────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> getGoal() async {
+    return await get('/api/goals');
+  }
+
+  static Future<Map<String, dynamic>> updateGoal(
+    Map<String, dynamic> goalData,
+  ) async {
+    return await put('/api/goals', goalData);
+  }
 }
+

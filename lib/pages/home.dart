@@ -32,6 +32,17 @@ class _HomePageState extends State<HomePage> {
   double goalAmount = 10000;
   String goalName = '🎯 Hedef';
   Color goalColor = Colors.purple;
+  
+  // Color mapping helper for API
+  final Map<String, Color> _colorMap = {
+    'purple': Colors.purple,
+    'blue': Colors.blue,
+    'orange': Colors.orange,
+    'pink': Colors.pink,
+    'teal': Colors.teal,
+    'indigo': Colors.indigo,
+  };
+
   DateTime selectedCalendarDate = DateTime.now();
   final Map<String, double> monthlyGoalProgress = {
     'Ocak': 500,
@@ -85,6 +96,18 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         investmentProfile = profileData['profile'];
       });
+
+      // Load goal
+      try {
+        final goalData = await ApiService.getGoal();
+        setState(() {
+          goalName = goalData['name'] ?? '🎯 Hedef';
+          goalAmount = (goalData['amount'] ?? 10000).toDouble();
+          goalColor = _colorMap[goalData['color']] ?? Colors.purple;
+        });
+      } catch (e) {
+        print('Error loading goal: $e');
+      }
 
       // Load user name — prefer locally stored value from login,
       // fall back to the API for updates made on other sessions.
@@ -529,9 +552,11 @@ class _HomePageState extends State<HomePage> {
     // Get dates with activities
     Set<int> activeDates = {};
     for (var activity in activities) {
-      if (activity['date'].month == today.month &&
-          activity['date'].year == today.year) {
-        activeDates.add(activity['date'].day);
+      final parsedDate = DateTime.tryParse(activity['date'].toString());
+      if (parsedDate != null && 
+          parsedDate.month == today.month &&
+          parsedDate.year == today.year) {
+        activeDates.add(parsedDate.day);
       }
     }
 
@@ -1345,20 +1370,41 @@ class _HomePageState extends State<HomePage> {
         initialName: goalName,
         initialAmount: goalAmount,
         initialColor: goalColor,
-        onSave: (newName, newAmount, newColor) {
-          setState(() {
-            goalName = newName;
-            goalAmount = newAmount;
-            goalColor = newColor;
+        onSave: (newName, newAmount, newColor) async {
+          // Find color string name
+          String colorString = 'purple';
+          _colorMap.forEach((key, value) {
+            if (value.value == newColor.value) colorString = key;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '$newName - ₺${newAmount.toStringAsFixed(0)} olarak güncellendi!',
-              ),
-              duration: const Duration(seconds: 2),
-            ),
-          );
+
+          try {
+            await ApiService.updateGoal({
+              'name': newName,
+              'amount': newAmount,
+              'color': colorString,
+            });
+            setState(() {
+              goalName = newName;
+              goalAmount = newAmount;
+              goalColor = newColor;
+            });
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    '$newName - ₺${newAmount.toStringAsFixed(0)} olarak güncellendi!',
+                  ),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+              );
+            }
+          }
         },
       ),
     );

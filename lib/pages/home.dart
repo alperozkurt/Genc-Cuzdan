@@ -30,7 +30,7 @@ class _HomePageState extends State<HomePage> {
 
   // Goal tracking variables
   double goalAmount = 10000;
-  String goalName = '🎯 Hedef';
+  String goalName = 'Hedef';
   Color goalColor = Colors.purple;
   
   // Color mapping helper for API

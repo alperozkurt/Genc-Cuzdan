@@ -10,6 +10,7 @@ class GencCuzdan extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Genç Cüzdan',
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginPage(),

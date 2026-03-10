@@ -86,12 +86,23 @@ class _HomePageState extends State<HomePage> {
         investmentProfile = profileData['profile'];
       });
 
-      // Load user profile
-      final userData = await ApiService.getUserProfile();
-      setState(() {
-        savedName = userData['name'] ?? '';
-        _nameController.text = savedName;
-      });
+      // Load user name — prefer locally stored value from login,
+      // fall back to the API for updates made on other sessions.
+      final localUser = await ApiService.getLocalUser();
+      if (localUser['name'] != null && (localUser['name'] as String).isNotEmpty) {
+        setState(() {
+          savedName = localUser['name'];
+          _nameController.text = savedName;
+        });
+      } else {
+        try {
+          final userData = await ApiService.getUserProfile();
+          setState(() {
+            savedName = userData['name'] ?? '';
+            _nameController.text = savedName;
+          });
+        } catch (_) {}
+      }
     } catch (e) {
       // Handle error - for now, keep default values
       print('Error loading data: $e');
@@ -193,10 +204,13 @@ class _HomePageState extends State<HomePage> {
               });
             }
           },
-          onLogout: () {
-            Navigator.of(
-              context,
-            ).pushNamedAndRemoveUntil('/login', (route) => false);
+          onLogout: () async {
+            await ApiService.logout();
+            if (mounted) {
+              Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil('/login', (route) => false);
+            }
           },
         );
       default:
@@ -372,14 +386,35 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
 
-          // Financial Summary Cardsr
+          // Financial Summary Cards
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildFinancialSummaryCard(
+                  title: 'Gelir',
+                  amount: monthlyIncome,
+                  icon: Icons.trending_up,
+                  color: Colors.green,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildFinancialSummaryCard(
+                  title: 'Gider',
+                  amount: monthlyExpense,
+                  icon: Icons.trending_down,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           _buildFinancialSummaryCard(
             title: 'Tasarruf',
             amount: monthlySavings,
             icon: Icons.savings,
             color: Colors.orange,
-            buttonLabel: null,
             showActionButtons: true,
             onIncomePressed: _showAddIncomeDialog,
             onExpensePressed: _showAddExpenseDialog,
@@ -882,30 +917,35 @@ class _HomePageState extends State<HomePage> {
             child: const Text('İptal'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final amount = double.tryParse(amountController.text);
               if (amount != null && amount > 0) {
-                setState(() {
-                  monthlyIncome += amount;
-                  monthlySavings += amount;
-                  activities.insert(0, {
-                    'date': DateTime.now(),
-                    'type': 'gelir',
+                Navigator.pop(context);
+                try {
+                  await ApiService.addTransaction({
                     'amount': amount,
                     'description': descriptionController.text.isEmpty
                         ? 'Gelir'
                         : descriptionController.text,
+                    'type': 'gelir',
+                    'date': DateTime.now().toIso8601String().substring(0, 10),
                   });
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '₺${amount.toStringAsFixed(0)} gelir eklendi',
-                    ),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
+                  await _loadData(); // reload from server
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('₺${amount.toStringAsFixed(0)} gelir eklendi'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
               }
             },
             child: const Text('Ekle'),
@@ -958,30 +998,35 @@ class _HomePageState extends State<HomePage> {
             child: const Text('İptal'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final amount = double.tryParse(amountController.text);
               if (amount != null && amount > 0) {
-                setState(() {
-                  monthlyExpense += amount;
-                  monthlySavings -= amount;
-                  activities.insert(0, {
-                    'date': DateTime.now(),
-                    'type': 'gider',
+                Navigator.pop(context);
+                try {
+                  await ApiService.addTransaction({
                     'amount': amount,
                     'description': descriptionController.text.isEmpty
                         ? 'Gider'
                         : descriptionController.text,
+                    'type': 'gider',
+                    'date': DateTime.now().toIso8601String().substring(0, 10),
                   });
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '₺${amount.toStringAsFixed(0)} gider eklendi',
-                    ),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
+                  await _loadData(); // reload from server
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('₺${amount.toStringAsFixed(0)} gider eklendi'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
               }
             },
             child: const Text('Ekle'),

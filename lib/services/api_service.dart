@@ -3,183 +3,169 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  // Replace with your FastAPI server URL
-  static const String baseUrl =
-      'http://100.68.176.40:8000'; // Remote server — no trailing slash
+  static const String baseUrl = 'http://100.68.176.40:8000';
 
-  // Headers for API requests
-  static Future<Map<String, String>> _getHeadersWithToken() async {
-    final headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
-
-    final token = await _getToken();
-    if (token != null) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-
-    return headers;
-  }
-
-  static Map<String, String> get _headers => {
+  static const Map<String, String> _headers = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
 
-  // ignore: unused_element
-  static Future<String?> _getToken() async {
+  // ── Local user storage (name, email) ─────────────────────────────────────
+
+  static Future<void> saveUser(Map<String, dynamic> user) async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('access_token');
+    await prefs.setString('user_name', user['name'] ?? '');
+    await prefs.setString('user_email', user['email'] ?? '');
+    await prefs.setInt('user_id', user['id'] ?? 0);
   }
 
-  static Future<void> _saveToken(String token) async {
+  static Future<Map<String, dynamic>> getLocalUser() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('access_token', token);
+    return {
+      'name': prefs.getString('user_name') ?? '',
+      'email': prefs.getString('user_email') ?? '',
+      'id': prefs.getInt('user_id') ?? 0,
+    };
   }
 
-  static Future<void> clearToken() async {
+  static Future<void> clearUser() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
+    await prefs.remove('user_name');
+    await prefs.remove('user_email');
+    await prefs.remove('user_id');
   }
 
-  // ignore: unused_element
-  static Map<String, String> _getAuthHeaders() {
-    return {'Content-Type': 'application/json', 'Accept': 'application/json'};
-  }
+  // ── HTTP helpers ──────────────────────────────────────────────────────────
 
-  // GET request
   static Future<Map<String, dynamic>> get(String endpoint) async {
     try {
-      final headers = await _getHeadersWithToken();
       final response = await http.get(
         Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
+        headers: _headers,
       );
-
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        throw Exception('Failed to load data: ${response.statusCode}');
+        throw Exception('GET $endpoint failed: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Network error: $e');
     }
   }
 
-  // POST request
+  static Future<List<dynamic>> getList(String endpoint) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: _headers,
+      );
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('GET $endpoint failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
   static Future<Map<String, dynamic>> post(
     String endpoint,
     Map<String, dynamic> data,
   ) async {
     try {
-      final headers = await _getHeadersWithToken();
       final response = await http.post(
         Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
+        headers: _headers,
         body: json.encode(data),
       );
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         return json.decode(response.body);
       } else {
-        throw Exception('Failed to post data: ${response.statusCode}');
+        final body = json.decode(response.body);
+        throw Exception(body['detail'] ?? 'Request failed: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Network error: $e');
+      throw Exception('$e');
     }
   }
 
-  // PUT request
   static Future<Map<String, dynamic>> put(
     String endpoint,
     Map<String, dynamic> data,
   ) async {
     try {
-      final headers = await _getHeadersWithToken();
       final response = await http.put(
         Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
+        headers: _headers,
         body: json.encode(data),
       );
-
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        throw Exception('Failed to update data: ${response.statusCode}');
+        throw Exception('PUT $endpoint failed: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Network error: $e');
     }
   }
 
-  // DELETE request
   static Future<void> delete(String endpoint) async {
     try {
-      final headers = await _getHeadersWithToken();
       final response = await http.delete(
         Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
+        headers: _headers,
       );
-
       if (response.statusCode != 200 && response.statusCode != 204) {
-        throw Exception('Failed to delete data: ${response.statusCode}');
+        throw Exception('DELETE $endpoint failed: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Network error: $e');
     }
   }
 
-  // Authentication endpoints
+  // ── Auth ──────────────────────────────────────────────────────────────────
+
   static Future<Map<String, dynamic>> register({
     required String email,
     required String password,
     required String name,
   }) async {
-    try {
-      final response = await post('/auth/register', {
-        'email': email,
-        'password': password,
-        'name': name,
-      });
-
-      if (response.containsKey('access_token')) {
-        await _saveToken(response['access_token']);
-      }
-
-      return response;
-    } catch (e) {
-      throw Exception('Registration failed: $e');
-    }
+    final response = await post('/auth/register', {
+      'email': email,
+      'password': password,
+      'name': name,
+    });
+    await saveUser(response);
+    return response;
   }
 
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
   }) async {
-    try {
-      final response = await post('/auth/login', {
-        'email': email,
-        'password': password,
-      });
-
-      if (response.containsKey('access_token')) {
-        await _saveToken(response['access_token']);
-      }
-
-      return response;
-    } catch (e) {
-      throw Exception('Login failed: $e');
-    }
+    final response = await post('/auth/login', {
+      'email': email,
+      'password': password,
+    });
+    await saveUser(response);
+    return response;
   }
 
   static Future<void> logout() async {
-    await clearToken();
+    await clearUser();
   }
 
-  // Financial data endpoints
+  // ── Financial ─────────────────────────────────────────────────────────────
+
   static Future<Map<String, dynamic>> getFinancialSummary() async {
     return await get('/api/financial/summary');
+  }
+
+  static Future<Map<String, dynamic>> updateFinancialSummary(
+    Map<String, dynamic> data,
+  ) async {
+    return await put('/api/financial/summary', data);
   }
 
   static Future<Map<String, dynamic>> getTransactions() async {
@@ -203,7 +189,8 @@ class ApiService {
     return await delete('/api/transactions/$id');
   }
 
-  // Investment profile endpoints
+  // ── Investment profile ────────────────────────────────────────────────────
+
   static Future<Map<String, dynamic>> getInvestmentProfile() async {
     return await get('/api/investment/profile');
   }
@@ -214,7 +201,8 @@ class ApiService {
     return await post('/api/investment/profile', {'profile': profile});
   }
 
-  // User endpoints
+  // ── User profile ──────────────────────────────────────────────────────────
+
   static Future<Map<String, dynamic>> getUserProfile() async {
     return await get('/api/user/profile');
   }

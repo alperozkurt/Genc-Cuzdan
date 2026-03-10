@@ -91,9 +91,19 @@ class ApiService {
         return json.decode(response.body);
       } else {
         final body = json.decode(response.body);
-        throw Exception(body['detail'] ?? 'Request failed: ${response.statusCode}');
+        String errorMessage = 'Request failed: ${response.statusCode}';
+        
+        if (body['detail'] != null) {
+          if (body['detail'] is List && body['detail'].isNotEmpty) {
+             errorMessage = body['detail'][0]['msg'] ?? 'Validation Error';
+          } else {
+             errorMessage = body['detail'].toString();
+          }
+        }
+        throw Exception(errorMessage);
       }
     } catch (e) {
+      if (e is Exception) rethrow;
       throw Exception('$e');
     }
   }

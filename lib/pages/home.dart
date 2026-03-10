@@ -44,14 +44,7 @@ class _HomePageState extends State<HomePage> {
   };
 
   DateTime selectedCalendarDate = DateTime.now();
-  final Map<String, double> monthlyGoalProgress = {
-    'Ocak': 500,
-    'Şubat': 950,
-    'Mart': 1350,
-    'Nisan': 1200,
-    'Mayıs': 2150,
-    'Haziran': 2625,
-  };
+  Map<String, double> monthlyGoalProgress = {};
 
   // Investment test variables
   String? investmentProfile;
@@ -89,6 +82,7 @@ class _HomePageState extends State<HomePage> {
         activities = List<Map<String, dynamic>>.from(
           transactionsData['activities'] ?? [],
         );
+        _calculateMonthlyGoalProgress();
       });
 
       // Load investment profile
@@ -140,6 +134,52 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _nameController.dispose();
     super.dispose();
+  }
+
+  void _calculateMonthlyGoalProgress() {
+    Map<String, double> netPerMonth = {};
+    for (var activity in activities) {
+      final date = DateTime.tryParse(activity['date'].toString());
+      if (date == null) continue;
+      
+      final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+      final isIncome = activity['type'] == 'gelir';
+      final amount = (activity['amount'] as num).toDouble();
+      
+      netPerMonth.update(
+        monthKey, 
+        (val) => val + (isIncome ? amount : -amount),
+        ifAbsent: () => isIncome ? amount : -amount,
+      );
+    }
+
+    final sortedMonths = netPerMonth.keys.toList()..sort();
+    
+    final List<String> monthNames = [
+      'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 
+      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+    ];
+    
+    Map<String, double> newProgress = {};
+    double runningTotal = 0;
+    
+    if (sortedMonths.isEmpty) {
+      final now = DateTime.now();
+      newProgress['${monthNames[now.month - 1]} ${now.year}'] = 0.0;
+    } else {
+      for (String monthKey in sortedMonths) {
+        runningTotal += netPerMonth[monthKey]!;
+        if (runningTotal < 0) runningTotal = 0; // Goals generally floor at 0
+        
+        final parts = monthKey.split('-');
+        final monthIndex = int.parse(parts[1]) - 1;
+        final formattedName = '${monthNames[monthIndex]} ${parts[0]}';
+        
+        newProgress[formattedName] = runningTotal;
+      }
+    }
+    
+    monthlyGoalProgress = newProgress;
   }
 
   @override

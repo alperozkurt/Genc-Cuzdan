@@ -103,9 +103,8 @@ class WalletPage extends StatefulWidget {
 class _WalletPageState extends State<WalletPage> {
   @override
   Widget build(BuildContext context) {
-    // Logic: Calculate Total Balance
-    final double totalBalance =
-        widget.monthlyIncome - widget.monthlyExpense + widget.monthlySavings;
+    // Logic: Calculate Total Balance (Savings represents the net balance)
+    final double totalBalance = widget.monthlySavings;
 
     return Scaffold(
       backgroundColor: AppColors.background,

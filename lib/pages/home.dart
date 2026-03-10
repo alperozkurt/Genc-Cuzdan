@@ -468,8 +468,11 @@ class _HomePageState extends State<HomePage> {
                   ? Icons.trending_up
                   : Icons.trending_down;
               final sign = activity['type'] == 'gelir' ? '+' : '-';
-              final formattedDate =
-                  '${activity['date'].day}/${activity['date'].month}/${activity['date'].year}';
+              final parsedDate =
+                  DateTime.tryParse(activity['date'].toString());
+              final formattedDate = parsedDate != null
+                  ? '${parsedDate.day}/${parsedDate.month}/${parsedDate.year}'
+                  : activity['date'].toString();
 
               return _buildTransactionItem(
                 '${activity['description']} ($formattedDate)',

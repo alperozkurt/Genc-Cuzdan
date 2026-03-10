@@ -38,6 +38,9 @@ dependencies:
   # HTTP client for API calls
   http: ^1.2.1
 
+  # Local storage for tokens and user data
+  shared_preferences: ^2.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

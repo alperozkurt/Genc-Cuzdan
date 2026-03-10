@@ -238,6 +238,7 @@ class _HomePageState extends State<HomePage> {
         return _buildHomeSection();
       case 1:
         return WalletPage(
+          userName: savedName,
           monthlyIncome: monthlyIncome,
           monthlyExpense: monthlyExpense,
           monthlySavings: monthlySavings,

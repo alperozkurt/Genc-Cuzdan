@@ -79,6 +79,7 @@ class AppStyles {
 // --- MAIN WIDGET ---
 
 class WalletPage extends StatefulWidget {
+  final String userName;
   final double monthlyIncome;
   final double monthlyExpense;
   final double monthlySavings;
@@ -87,6 +88,7 @@ class WalletPage extends StatefulWidget {
   final Function() onRetakeInvestmentTest;
 
   const WalletPage({
+    required this.userName,
     required this.monthlyIncome,
     required this.monthlyExpense,
     required this.monthlySavings,
@@ -164,14 +166,14 @@ class _WalletPageState extends State<WalletPage> {
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
+                  children: [
+                    const Text(
                       'Hoşgeldiniz,',
                       style: TextStyle(fontSize: 14, color: AppColors.darkGray),
                     ),
                     Text(
-                      'Kullanıcı',
-                      style: TextStyle(
+                      widget.userName.isNotEmpty ? widget.userName : 'Kullanıcı',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: AppColors.black,

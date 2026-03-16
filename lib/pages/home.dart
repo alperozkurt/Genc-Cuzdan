@@ -4,6 +4,63 @@ import 'wallet.dart';
 import 'profile.dart';
 import '../services/api_service.dart';
 
+// --- DESIGN SYSTEM CONSTANTS (Mapped from wallet.dart) ---
+class AppColors {
+  static const Color teal = Color(0xFF17A2A2);
+  static const Color darkTeal = Color(0xFF0D8B8F);
+  static const Color lightTeal = Color(0xFF4ECDC1);
+  static const Color softGreen = Color(0xFF2ECC71);
+  static const Color darkGreen = Color(0xFF27AE60);
+  static const Color coral = Color(0xFFFF6B6B);
+  static const Color orange = Color(0xFFF39C12);
+  static const Color purple = Color(0xFF9B59B6);
+  static const Color background = Color(0xFFF5F5F5); 
+  static const Color white = Color(0xFFFFFFFF);
+  static const Color darkGray = Color(0xFF666666);
+  static const Color black = Color(0xFF1A1A1A);
+  static const Color mediumGray = Color(0xFFCCCCCC);
+}
+
+class AppStyles {
+  static const TextStyle heading1 = TextStyle(
+    fontSize: 28,
+    fontWeight: FontWeight.w700,
+    color: AppColors.black,
+    height: 1.2,
+    fontFamily: 'Inter',
+  );
+  static const TextStyle heading2 = TextStyle(
+    fontSize: 24,
+    fontWeight: FontWeight.w600,
+    color: AppColors.black,
+    height: 1.2,
+  );
+  static const TextStyle subheading = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    color: AppColors.darkGray,
+    height: 1.3,
+  );
+  static const TextStyle body = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    color: AppColors.darkGray,
+    height: 1.5,
+  );
+  static const BoxShadow cardShadow = BoxShadow(
+    color: Color.fromRGBO(0, 0, 0, 0.12),
+    blurRadius: 12,
+    offset: Offset(0, 4),
+  );
+  static const BoxShadow subtleShadow = BoxShadow(
+    color: Color.fromRGBO(0, 0, 0, 0.08),
+    blurRadius: 4,
+    offset: Offset(0, 2),
+  );
+  static final BorderRadius cardRadius = BorderRadius.circular(16);
+  static final BorderRadius buttonRadius = BorderRadius.circular(12);
+}
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -32,7 +89,7 @@ class _HomePageState extends State<HomePage> {
   double goalAmount = 10000;
   String goalName = 'Hedef';
   Color goalColor = Colors.purple;
-  
+
   // Color mapping helper for API
   final Map<String, Color> _colorMap = {
     'purple': Colors.purple,
@@ -106,7 +163,8 @@ class _HomePageState extends State<HomePage> {
       // Load user name — prefer locally stored value from login,
       // fall back to the API for updates made on other sessions.
       final localUser = await ApiService.getLocalUser();
-      if (localUser['name'] != null && (localUser['name'] as String).isNotEmpty) {
+      if (localUser['name'] != null &&
+          (localUser['name'] as String).isNotEmpty) {
         setState(() {
           savedName = localUser['name'];
           _nameController.text = savedName;
@@ -141,28 +199,38 @@ class _HomePageState extends State<HomePage> {
     for (var activity in activities) {
       final date = DateTime.tryParse(activity['date'].toString());
       if (date == null) continue;
-      
+
       final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
       final isIncome = activity['type'] == 'gelir';
       final amount = (activity['amount'] as num).toDouble();
-      
+
       netPerMonth.update(
-        monthKey, 
+        monthKey,
         (val) => val + (isIncome ? amount : -amount),
         ifAbsent: () => isIncome ? amount : -amount,
       );
     }
 
     final sortedMonths = netPerMonth.keys.toList()..sort();
-    
+
     final List<String> monthNames = [
-      'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 
-      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+      'Ocak',
+      'Şubat',
+      'Mart',
+      'Nisan',
+      'Mayıs',
+      'Haziran',
+      'Temmuz',
+      'Ağustos',
+      'Eylül',
+      'Ekim',
+      'Kasım',
+      'Aralık',
     ];
-    
+
     Map<String, double> newProgress = {};
     double runningTotal = 0;
-    
+
     if (sortedMonths.isEmpty) {
       final now = DateTime.now();
       newProgress['${monthNames[now.month - 1]} ${now.year}'] = 0.0;
@@ -170,22 +238,31 @@ class _HomePageState extends State<HomePage> {
       for (String monthKey in sortedMonths) {
         runningTotal += netPerMonth[monthKey]!;
         if (runningTotal < 0) runningTotal = 0; // Goals generally floor at 0
-        
+
         final parts = monthKey.split('-');
         final monthIndex = int.parse(parts[1]) - 1;
         final formattedName = '${monthNames[monthIndex]} ${parts[0]}';
-        
+
         newProgress[formattedName] = runningTotal;
       }
     }
-    
+
     monthlyGoalProgress = newProgress;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('GençCüzdan')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text(
+          'GençCüzdan',
+          style: TextStyle(color: AppColors.black, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppColors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppColors.black),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _buildBody(),
@@ -291,7 +368,7 @@ class _HomePageState extends State<HomePage> {
           // Welcome Section
           Text(
             savedName.isEmpty ? 'Hoşgeldiniz' : 'Hoşgeldiniz, $savedName',
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: AppStyles.heading2,
           ),
           const SizedBox(height: 24),
 
@@ -451,6 +528,7 @@ class _HomePageState extends State<HomePage> {
           ],
 
           // Financial Summary Cards
+          const Text('Finansal Özet', style: AppStyles.subheading),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -458,8 +536,8 @@ class _HomePageState extends State<HomePage> {
                 child: _buildFinancialSummaryCard(
                   title: 'Gelir',
                   amount: monthlyIncome,
-                  icon: Icons.trending_up,
-                  color: Colors.green,
+                  icon: Icons.arrow_upward_rounded,
+                  color: AppColors.softGreen,
                 ),
               ),
               const SizedBox(width: 12),
@@ -467,8 +545,8 @@ class _HomePageState extends State<HomePage> {
                 child: _buildFinancialSummaryCard(
                   title: 'Gider',
                   amount: monthlyExpense,
-                  icon: Icons.trending_down,
-                  color: Colors.red,
+                  icon: Icons.arrow_downward_rounded,
+                  color: AppColors.coral,
                 ),
               ),
             ],
@@ -477,11 +555,10 @@ class _HomePageState extends State<HomePage> {
           _buildFinancialSummaryCard(
             title: 'Tasarruf',
             amount: monthlySavings,
-            icon: Icons.savings,
-            color: Colors.orange,
+            icon: Icons.savings_outlined,
+            color: AppColors.orange,
             showActionButtons: true,
-            onIncomePressed: _showAddIncomeDialog,
-            onExpensePressed: _showAddExpenseDialog,
+            onActionPressed: _showAddTransactionDialog,
           ),
           const SizedBox(height: 12),
 
@@ -492,7 +569,7 @@ class _HomePageState extends State<HomePage> {
           // Exchange Rates Section
           const Text(
             'Döviz Kurları',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: AppStyles.subheading,
           ),
           const SizedBox(height: 12),
           Row(
@@ -545,7 +622,7 @@ class _HomePageState extends State<HomePage> {
           // Recent Transactions
           const Text(
             'Son İşlemler',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: AppStyles.subheading,
           ),
           const SizedBox(height: 12),
           if (activities.isEmpty)
@@ -561,14 +638,13 @@ class _HomePageState extends State<HomePage> {
           else
             ...activities.take(5).map((activity) {
               final color = activity['type'] == 'gelir'
-                  ? Colors.green
-                  : Colors.red;
+                  ? AppColors.softGreen
+                  : AppColors.coral;
               final icon = activity['type'] == 'gelir'
-                  ? Icons.trending_up
-                  : Icons.trending_down;
+                  ? Icons.arrow_upward_rounded
+                  : Icons.arrow_downward_rounded;
               final sign = activity['type'] == 'gelir' ? '+' : '-';
-              final parsedDate =
-                  DateTime.tryParse(activity['date'].toString());
+              final parsedDate = DateTime.tryParse(activity['date'].toString());
               final formattedDate = parsedDate != null
                   ? '${parsedDate.day}/${parsedDate.month}/${parsedDate.year}'
                   : activity['date'].toString();
@@ -594,7 +670,7 @@ class _HomePageState extends State<HomePage> {
     Set<int> activeDates = {};
     for (var activity in activities) {
       final parsedDate = DateTime.tryParse(activity['date'].toString());
-      if (parsedDate != null && 
+      if (parsedDate != null &&
           parsedDate.month == today.month &&
           parsedDate.year == today.year) {
         activeDates.add(parsedDate.day);
@@ -1000,7 +1076,9 @@ class _HomePageState extends State<HomePage> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('₺${amount.toStringAsFixed(0)} gelir eklendi'),
+                        content: Text(
+                          '₺${amount.toStringAsFixed(0)} gelir eklendi',
+                        ),
                         duration: const Duration(seconds: 2),
                       ),
                     );
@@ -1008,7 +1086,10 @@ class _HomePageState extends State<HomePage> {
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+                      SnackBar(
+                        content: Text('Hata: $e'),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                   }
                 }
@@ -1081,7 +1162,9 @@ class _HomePageState extends State<HomePage> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('₺${amount.toStringAsFixed(0)} gider eklendi'),
+                        content: Text(
+                          '₺${amount.toStringAsFixed(0)} gider eklendi',
+                        ),
                         duration: const Duration(seconds: 2),
                       ),
                     );
@@ -1089,7 +1172,10 @@ class _HomePageState extends State<HomePage> {
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+                      SnackBar(
+                        content: Text('Hata: $e'),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                   }
                 }
@@ -1442,7 +1528,10 @@ class _HomePageState extends State<HomePage> {
           } catch (e) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+                SnackBar(
+                  content: Text('Hata: $e'),
+                  backgroundColor: Colors.red,
+                ),
               );
             }
           }

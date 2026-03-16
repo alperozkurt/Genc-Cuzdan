@@ -3,6 +3,7 @@ import 'terms.dart';
 import 'wallet.dart';
 import 'profile.dart';
 import '../services/api_service.dart';
+import '../services/market_service.dart';
 
 // --- DESIGN SYSTEM CONSTANTS (Mapped from wallet.dart) ---
 class AppColors {
@@ -14,7 +15,7 @@ class AppColors {
   static const Color coral = Color(0xFFFF6B6B);
   static const Color orange = Color(0xFFF39C12);
   static const Color purple = Color(0xFF9B59B6);
-  static const Color background = Color(0xFFF5F5F5); 
+  static const Color background = Color(0xFFF5F5F5);
   static const Color white = Color(0xFFFFFFFF);
   static const Color darkGray = Color(0xFF666666);
   static const Color black = Color(0xFF1A1A1A);
@@ -71,6 +72,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   String savedName = '';
+  String? savedJobType;
+  double? savedMonthlySalary;
   final TextEditingController _nameController = TextEditingController();
   bool _showGoalDetails = false;
   bool _isLoading = true;
@@ -85,10 +88,17 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> expenseTransactions = [];
   List<Map<String, dynamic>> activities = [];
 
-  // Goal tracking variables
-  double goalAmount = 10000;
-  String goalName = 'Hedef';
-  Color goalColor = Colors.purple;
+  // Goal tracking state
+  List<Map<String, dynamic>> goals = [];
+  Map<int, bool> _expandedGoals = {}; 
+
+  // Market Rates Data
+  Map<String, double> liveMarketRates = {
+    'USD/TL': 34.52,
+    'EUR/TL': 37.89,
+    'Gram Altın': 2445.75,
+    'BTC/TL': 1352450.0,
+  };
 
   // Color mapping helper for API
   final Map<String, Color> _colorMap = {
@@ -101,7 +111,7 @@ class _HomePageState extends State<HomePage> {
   };
 
   DateTime selectedCalendarDate = DateTime.now();
-  Map<String, double> monthlyGoalProgress = {};
+  int _currentGoalIndex = 0;
 
   // Investment test variables
   String? investmentProfile;
@@ -127,8 +137,11 @@ class _HomePageState extends State<HomePage> {
         monthlySavings = financialData['monthly_savings'] ?? 0.0;
       });
 
-      // Load transactions
-      final transactionsData = await ApiService.getTransactions();
+      // Load transactions (passing selected calendar date)
+      final transactionsData = await ApiService.getTransactions(
+        year: selectedCalendarDate.year,
+        month: selectedCalendarDate.month,
+      );
       setState(() {
         incomeTransactions = List<Map<String, dynamic>>.from(
           transactionsData['income'] ?? [],
@@ -139,7 +152,6 @@ class _HomePageState extends State<HomePage> {
         activities = List<Map<String, dynamic>>.from(
           transactionsData['activities'] ?? [],
         );
-        _calculateMonthlyGoalProgress();
       });
 
       // Load investment profile
@@ -148,16 +160,19 @@ class _HomePageState extends State<HomePage> {
         investmentProfile = profileData['profile'];
       });
 
-      // Load goal
+      // Load goals
       try {
-        final goalData = await ApiService.getGoal();
+        final goalsData = await ApiService.getGoals();
         setState(() {
-          goalName = goalData['name'] ?? '🎯 Hedef';
-          goalAmount = (goalData['amount'] ?? 10000).toDouble();
-          goalColor = _colorMap[goalData['color']] ?? Colors.purple;
+          goals = List<Map<String, dynamic>>.from(goalsData);
+          if (_currentGoalIndex >= goals.length && goals.isNotEmpty) {
+            _currentGoalIndex = goals.length - 1;
+          } else if (goals.isEmpty) {
+            _currentGoalIndex = 0;
+          }
         });
       } catch (e) {
-        print('Error loading goal: $e');
+        print('Error loading goals: $e');
       }
 
       // Load user name — prefer locally stored value from login,
@@ -174,10 +189,15 @@ class _HomePageState extends State<HomePage> {
           final userData = await ApiService.getUserProfile();
           setState(() {
             savedName = userData['name'] ?? '';
+            savedJobType = userData['job_type'];
+            savedMonthlySalary = userData['monthly_salary'] != null ? (userData['monthly_salary'] as num).toDouble() : null;
             _nameController.text = savedName;
           });
         } catch (_) {}
       }
+
+      // Load Market Data — Load independently to avoid blocking main content
+      _loadMarketData();
     } catch (e) {
       // Handle error - for now, keep default values
       print('Error loading data: $e');
@@ -188,15 +208,59 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _loadMarketData() async {
+    try {
+      final mData = await MarketService.getMarketData();
+      if (mData.isNotEmpty) {
+        setState(() {
+          mData.forEach((key, value) {
+            liveMarketRates[key] = value;
+          });
+        });
+      }
+    } catch (e) {
+      print('Error loading market data: $e');
+    }
+  }
+
+  Future<void> _loadCalendarData() async {
+    try {
+      final transactionsData = await ApiService.getTransactions(
+        year: selectedCalendarDate.year,
+        month: selectedCalendarDate.month,
+      );
+      setState(() {
+        activities = List<Map<String, dynamic>>.from(
+          transactionsData['activities'] ?? [],
+        );
+      });
+    } catch (e) {
+      print('Error loading calendar data: $e');
+    }
+  }
+
+  void _changeCalendarMonth(int diff) {
+    setState(() {
+      selectedCalendarDate = DateTime(
+        selectedCalendarDate.year,
+        selectedCalendarDate.month + diff,
+        1,
+      );
+    });
+    _loadCalendarData();
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
   }
 
-  void _calculateMonthlyGoalProgress() {
+  Map<String, double> _getMonthlyProgressForGoal(int goalId, double goalAmount) {
     Map<String, double> netPerMonth = {};
     for (var activity in activities) {
+      if (activity['goal_id'] != goalId) continue;
+
       final date = DateTime.tryParse(activity['date'].toString());
       if (date == null) continue;
 
@@ -214,18 +278,8 @@ class _HomePageState extends State<HomePage> {
     final sortedMonths = netPerMonth.keys.toList()..sort();
 
     final List<String> monthNames = [
-      'Ocak',
-      'Şubat',
-      'Mart',
-      'Nisan',
-      'Mayıs',
-      'Haziran',
-      'Temmuz',
-      'Ağustos',
-      'Eylül',
-      'Ekim',
-      'Kasım',
-      'Aralık',
+      'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
     ];
 
     Map<String, double> newProgress = {};
@@ -237,7 +291,7 @@ class _HomePageState extends State<HomePage> {
     } else {
       for (String monthKey in sortedMonths) {
         runningTotal += netPerMonth[monthKey]!;
-        if (runningTotal < 0) runningTotal = 0; // Goals generally floor at 0
+        if (runningTotal < 0) runningTotal = 0;
 
         final parts = monthKey.split('-');
         final monthIndex = int.parse(parts[1]) - 1;
@@ -246,8 +300,22 @@ class _HomePageState extends State<HomePage> {
         newProgress[formattedName] = runningTotal;
       }
     }
+    return newProgress;
+  }
 
-    monthlyGoalProgress = newProgress;
+  double _calculateCurrentProgressForGoal(int goalId, double goalAmount) {
+    if (goalAmount <= 0) return 0.0;
+    double total = 0.0;
+    for (var activity in activities) {
+      if (activity['goal_id'] == goalId) {
+        if (activity['type'] == 'gelir') {
+          total += (activity['amount'] as num).toDouble();
+        } else if (activity['type'] == 'gider') {
+          total -= (activity['amount'] as num).toDouble();
+        }
+      }
+    }
+    return (total / goalAmount).clamp(0.0, 1.0);
   }
 
   @override
@@ -320,6 +388,8 @@ class _HomePageState extends State<HomePage> {
           monthlyExpense: monthlyExpense,
           monthlySavings: monthlySavings,
           investmentProfile: investmentProfile,
+          goals: goals,
+          activities: activities,
           onStartInvestmentTest: (_) {
             _startInvestmentTest();
           },
@@ -329,19 +399,46 @@ class _HomePageState extends State<HomePage> {
         return const TermsPage();
       case 3:
         return ProfilePage(
-          savedName: savedName,
-          nameController: _nameController,
-          onNameSaved: (name) async {
+          initialProfileData: {
+            'name': savedName,
+            'job_type': savedJobType,
+            'monthly_salary': savedMonthlySalary,
+          },
+          onProfileSaved: (profileData) async {
             try {
-              await ApiService.updateUserProfile({'name': name});
+              await ApiService.updateUserProfile(profileData);
               setState(() {
-                savedName = name;
+                if (profileData.containsKey('name')) {
+                  savedName = profileData['name'];
+                }
+                if (profileData.containsKey('job_type')) {
+                  savedJobType = profileData['job_type'];
+                }
+                if (profileData.containsKey('monthly_salary')) {
+                   savedMonthlySalary = double.tryParse(profileData['monthly_salary'].toString());
+                }
               });
             } catch (e) {
-              // Handle error - still update locally for now
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Sunucu hatası: $e'),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 4),
+                  ),
+                );
+              }
               print('Error saving user profile: $e');
               setState(() {
-                savedName = name;
+                 if (profileData.containsKey('name')) {
+                  savedName = profileData['name'];
+                }
+                if (profileData.containsKey('job_type')) {
+                  savedJobType = profileData['job_type'];
+                }
+                if (profileData.containsKey('monthly_salary')) {
+                   savedMonthlySalary = double.tryParse(profileData['monthly_salary'].toString());
+                }
               });
             }
           },
@@ -372,259 +469,131 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 24),
 
-          // Mali Hedef Section - Clickable
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _showGoalDetails = !_showGoalDetails;
-              });
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    goalColor.withValues(alpha: 0.8),
-                    goalColor.withValues(alpha: 1.0),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+          // Aktif ve Eski Hedefler Section
+          if (goals.isNotEmpty) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Hedeflerim (${goals.length})',
+                  style: AppStyles.subheading,
                 ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: goalColor.withValues(alpha: 0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            goalName,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          ElevatedButton(
-                            onPressed: _showGoalCustomizeDialog,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: goalColor,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                            ),
-                            child: const Text(
-                              'Özelleştir',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Icon(
-                        _showGoalDetails
-                            ? Icons.expand_less
-                            : Icons.expand_more,
-                        color: Colors.white,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                if (goals.length > 1)
                   Text(
-                    '₺${goalAmount.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    'Kaydır →',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: LinearProgressIndicator(
-                      value: _calculateCurrentProgress(),
-                      minHeight: 10,
-                      backgroundColor: Colors.white.withValues(alpha: 0.3),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${(_calculateCurrentProgress() * 100).toStringAsFixed(1)}% tamamlandı (₺${monthlyGoalProgress.values.last.toStringAsFixed(0)})',
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                  ),
-                ],
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: _expandedGoals.values.contains(true) ? 600 : 150,
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                scrollDirection: Axis.horizontal,
+                itemCount: goals.length,
+                itemBuilder: (context, index) {
+                  final goal = goals[index];
+                  bool isSmall = goals.length > 1;
+                  return Container(
+                    width: MediaQuery.of(context).size.width * (isSmall ? 0.85 : 0.92),
+                    padding: const EdgeInsets.only(right: 12.0),
+                    child: _buildGoalCard(goal),
+                  );
+                },
               ),
             ),
-          ),
+          ] else
+             const Padding(
+               padding: EdgeInsets.symmetric(vertical: 24),
+               child: Center(child: Text('Aktif hedefiniz bulunmamaktadır', style: TextStyle(color: Colors.grey))),
+             ),
 
-          if (_showGoalDetails) ...[
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: goalColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: goalColor, width: 1),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Aylık İlerleme',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: goalColor,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ...monthlyGoalProgress.entries.toList().asMap().entries.map((
-                    entry,
-                  ) {
-                    int index = entry.key;
-                    String month = entry.value.key;
-                    double currentValue = entry.value.value;
-
-                    // Calculate monthly addition
-                    double previousValue = index > 0
-                        ? monthlyGoalProgress.values.toList()[index - 1]
-                        : 0;
-                    double monthlyAddition = currentValue - previousValue;
-
-                    double percentage = (currentValue / goalAmount) * 100;
-                    double monthlyPercentage =
-                        (monthlyAddition / goalAmount) * 100;
-                    bool isPositive = monthlyAddition > 0;
-
-                    return _buildGoalProgressItem(
-                      month,
-                      monthlyAddition,
-                      currentValue,
-                      monthlyPercentage,
-                      percentage,
-                      isPositive,
-                    );
-                  }),
-                ],
-              ),
-            ),
-          ],
-
-          // Financial Summary Cards
-          const Text('Finansal Özet', style: AppStyles.subheading),
-          const SizedBox(height: 12),
+          const SizedBox(height: 24),
+          // Action Cards
+          const Text('Hızlı İşlemler', style: AppStyles.subheading),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
-                child: _buildFinancialSummaryCard(
-                  title: 'Gelir',
-                  amount: monthlyIncome,
-                  icon: Icons.arrow_upward_rounded,
-                  color: AppColors.softGreen,
+                child: _buildActionCard(
+                  title: 'Gelir/Gider Ekle',
+                  icon: Icons.add_chart_rounded,
+                  color: AppColors.teal,
+                  onTap: _showAddTransactionDialog,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
-                child: _buildFinancialSummaryCard(
-                  title: 'Gider',
-                  amount: monthlyExpense,
-                  icon: Icons.arrow_downward_rounded,
-                  color: AppColors.coral,
+                child: _buildActionCard(
+                  title: 'Yeni Hedef',
+                  icon: Icons.track_changes_rounded,
+                  color: AppColors.purple,
+                  onTap: _showAddGoalDialog,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          _buildFinancialSummaryCard(
-            title: 'Tasarruf',
-            amount: monthlySavings,
-            icon: Icons.savings_outlined,
-            color: AppColors.orange,
-            showActionButtons: true,
-            onActionPressed: _showAddTransactionDialog,
-          ),
-          const SizedBox(height: 12),
+
+          const SizedBox(height: 32),
 
           // Calendar Section
           _buildActivityCalendar(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
 
           // Exchange Rates Section
-          const Text(
-            'Döviz Kurları',
-            style: AppStyles.subheading,
-          ),
-          const SizedBox(height: 12),
+          const Text('Döviz Kurları', style: AppStyles.subheading),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 child: _buildExchangeRateCard(
                   title: 'USD/TL',
-                  rate: '34.52',
-                  change: '+0.25%',
+                  rate: (liveMarketRates['USD/TL'] ?? 34.52).toStringAsFixed(2),
+                  change: 'Canlı',
                   isPositive: true,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: _buildExchangeRateCard(
                   title: 'EUR/TL',
-                  rate: '37.89',
-                  change: '-0.15%',
-                  isPositive: false,
+                  rate: (liveMarketRates['EUR/TL'] ?? 37.89).toStringAsFixed(2),
+                  change: 'Canlı',
+                  isPositive: true,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 child: _buildCommodityCard(
                   title: 'Gram Altın',
-                  value: '₺2,445.75',
-                  icon: Icons.trending_up,
+                  value: '₺${(liveMarketRates['Gram Altın'] ?? 2445.75).toStringAsFixed(2)}',
+                  icon: Icons.monetization_on,
                   color: Colors.amber,
                   isPositive: true,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: _buildCommodityCard(
                   title: 'BTC/TL',
-                  value: '₺1,352,450',
-                  icon: Icons.trending_up,
+                  value: '₺${(liveMarketRates['BTC/TL'] ?? 1352450.0).toStringAsFixed(0)}',
+                  icon: Icons.currency_bitcoin_rounded,
                   color: Colors.orange,
                   isPositive: true,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
 
           // Recent Transactions
-          const Text(
-            'Son İşlemler',
-            style: AppStyles.subheading,
-          ),
-          const SizedBox(height: 12),
+          const Text('Son İşlemler', style: AppStyles.subheading),
+          const SizedBox(height: 16),
           if (activities.isEmpty)
             Center(
               child: Padding(
@@ -662,17 +631,17 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildActivityCalendar() {
-    DateTime today = DateTime.now();
-    int daysInMonth = DateTime(today.year, today.month + 1, 0).day;
-    int firstDayOfMonth = DateTime(today.year, today.month, 1).weekday;
+    DateTime now = DateTime.now();
+    int daysInMonth = DateTime(selectedCalendarDate.year, selectedCalendarDate.month + 1, 0).day;
+    int firstDayOfMonth = DateTime(selectedCalendarDate.year, selectedCalendarDate.month, 1).weekday;
 
     // Get dates with activities
     Set<int> activeDates = {};
     for (var activity in activities) {
       final parsedDate = DateTime.tryParse(activity['date'].toString());
       if (parsedDate != null &&
-          parsedDate.month == today.month &&
-          parsedDate.year == today.year) {
+          parsedDate.month == selectedCalendarDate.month &&
+          parsedDate.year == selectedCalendarDate.year) {
         activeDates.add(parsedDate.day);
       }
     }
@@ -696,22 +665,43 @@ class _HomePageState extends State<HomePage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200, width: 1),
+        color: AppColors.white,
+        borderRadius: AppStyles.cardRadius,
+        boxShadow: [AppStyles.subtleShadow],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${monthNames[today.month - 1]} ${today.year}',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${monthNames[selectedCalendarDate.month - 1]} ${selectedCalendarDate.year}',
+                style: AppStyles.subheading.copyWith(
+                  color: AppColors.teal,
+                  fontSize: 18,
+                ),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => _changeCalendarMonth(-1),
+                    icon: const Icon(Icons.chevron_left, color: AppColors.teal),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    onPressed: () => _changeCalendarMonth(1),
+                    icon: const Icon(Icons.chevron_right, color: AppColors.teal),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           // Week day headers
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -748,21 +738,23 @@ class _HomePageState extends State<HomePage> {
               }
 
               int day = index - (firstDayOfMonth - 1) + 1;
-              bool isToday = day == today.day;
+              bool isToday = day == now.day && 
+                             selectedCalendarDate.month == now.month && 
+                             selectedCalendarDate.year == now.year;
               bool hasActivity = activeDates.contains(day);
 
               return Container(
                 decoration: BoxDecoration(
                   color: isToday
-                      ? Colors.blue
+                      ? AppColors.teal
                       : hasActivity
-                      ? Colors.orange.withValues(alpha: 0.3)
+                      ? AppColors.orange.withValues(alpha: 0.1)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                   border: isToday
-                      ? Border.all(color: Colors.blue, width: 2)
+                      ? Border.all(color: AppColors.teal, width: 2)
                       : hasActivity
-                      ? Border.all(color: Colors.orange, width: 1.5)
+                      ? Border.all(color: AppColors.orange.withValues(alpha: 0.3), width: 1.5)
                       : null,
                 ),
                 child: Center(
@@ -770,11 +762,11 @@ class _HomePageState extends State<HomePage> {
                     day.toString(),
                     style: TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       color: isToday
                           ? Colors.white
                           : hasActivity
-                          ? Colors.orange.shade700
+                          ? AppColors.orange
                           : Colors.black87,
                     ),
                   ),
@@ -789,7 +781,7 @@ class _HomePageState extends State<HomePage> {
                 width: 10,
                 height: 10,
                 decoration: BoxDecoration(
-                  color: Colors.blue,
+                  color: AppColors.teal,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -814,64 +806,37 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildFinancialSummaryCard({
+  Widget _buildActionCard({
     required String title,
-    required double amount,
     required IconData icon,
     required Color color,
-    String? buttonLabel,
-    bool showActionButtons = false,
-    VoidCallback? onActionPressed,
+    required VoidCallback onTap,
   }) {
-    bool isTasarruf = title == 'Tasarruf';
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: AppStyles.cardRadius,
-        boxShadow: [AppStyles.subtleShadow],
-      ),
-      child: isTasarruf
-          ? Row(
-              children: [
-                _buildIconContainer(icon, color),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: AppStyles.body.copyWith(fontSize: 12)),
-                      const SizedBox(height: 4),
-                      Text(
-                        '₺${amount.toStringAsFixed(2)}',
-                        style: AppStyles.heading2.copyWith(fontSize: 20),
-                      ),
-                    ],
-                  ),
-                ),
-                if (showActionButtons)
-                  IconButton(
-                    onPressed: onActionPressed,
-                    icon: const Icon(Icons.add_circle, color: AppColors.teal, size: 32),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildIconContainer(icon, color),
-                const SizedBox(height: 12),
-                Text(title, style: AppStyles.body.copyWith(fontSize: 12)),
-                const SizedBox(height: 4),
-                Text(
-                  '₺${amount.toStringAsFixed(0)}',
-                  style: AppStyles.heading2.copyWith(fontSize: 18),
-                ),
-              ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: AppStyles.cardRadius,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: AppStyles.cardRadius,
+          boxShadow: [AppStyles.subtleShadow],
+        ),
+        child: Column(
+          children: [
+            _buildIconContainer(icon, color),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: AppStyles.body.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
             ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -891,6 +856,14 @@ class _HomePageState extends State<HomePage> {
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
     String selectedType = 'gelir'; // default
+    int? selectedGoalId;
+    
+    if (goals.isNotEmpty && _currentGoalIndex < goals.length) {
+      final g = goals[_currentGoalIndex];
+      if (g['is_completed'] != true && g['is_completed'] != 1) {
+        selectedGoalId = g['id'];
+      }
+    }
 
     showDialog(
       context: context,
@@ -924,7 +897,9 @@ class _HomePageState extends State<HomePage> {
                       });
                     },
                     style: ButtonStyle(
-                      backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+                      backgroundColor: WidgetStateProperty.resolveWith<Color>((
+                        states,
+                      ) {
                         if (states.contains(WidgetState.selected)) {
                           return selectedType == 'gelir'
                               ? AppColors.softGreen.withValues(alpha: 0.2)
@@ -932,9 +907,13 @@ class _HomePageState extends State<HomePage> {
                         }
                         return Colors.transparent;
                       }),
-                      foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+                      foregroundColor: WidgetStateProperty.resolveWith<Color>((
+                        states,
+                      ) {
                         if (states.contains(WidgetState.selected)) {
-                          return selectedType == 'gelir' ? AppColors.darkGreen : AppColors.coral;
+                          return selectedType == 'gelir'
+                              ? AppColors.darkGreen
+                              : AppColors.coral;
                         }
                         return AppColors.darkGray;
                       }),
@@ -963,13 +942,45 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<int>(
+                    isExpanded: true,
+                    value: selectedGoalId,
+                    hint: const Text('İlişkili Hedef (opsiyonel)'),
+                    items: [
+                      const DropdownMenuItem<int>(
+                        value: null,
+                        child: Text('Yok'),
+                      ),
+                      ...goals.where((g) => g['is_completed'] != true && g['is_completed'] != 1).map((goal) {
+                        return DropdownMenuItem<int>(
+                          value: goal['id'],
+                          child: Text(goal['name']),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedGoalId = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                       prefixIcon: const Icon(Icons.track_changes),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                    ),
+                  ),
                 ],
               ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('İptal', style: TextStyle(color: AppColors.darkGray)),
+                child: const Text(
+                  'İptal',
+                  style: TextStyle(color: AppColors.darkGray),
+                ),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -983,7 +994,11 @@ class _HomePageState extends State<HomePage> {
                             ? (selectedType == 'gelir' ? 'Gelir' : 'Gider')
                             : descriptionController.text,
                         'type': selectedType,
-                        'date': DateTime.now().toIso8601String().substring(0, 10),
+                        'date': DateTime.now().toIso8601String().substring(
+                          0,
+                          10,
+                        ),
+                        if (selectedGoalId != null) 'goal_id': selectedGoalId,
                       });
                       await _loadData(); // reload from server
                       if (mounted) {
@@ -1011,7 +1026,9 @@ class _HomePageState extends State<HomePage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.teal,
                   foregroundColor: AppColors.white,
-                  shape: RoundedRectangleBorder(borderRadius: AppStyles.buttonRadius),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppStyles.buttonRadius,
+                  ),
                 ),
                 child: const Text('Ekle'),
               ),
@@ -1022,66 +1039,422 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _showSavingsDetailsDialog() {
+  void _showAddGoalDialog() {
+    final nameController = TextEditingController();
+    final amountController = TextEditingController();
+    String selectedColor = 'purple';
+
     showDialog(
       context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Tasarruf Detayları'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Toplam Tasarruf: ₺${monthlySavings.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orange,
+      builder: (BuildContext context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Yeni Hedef Oluştur', style: AppStyles.subheading),
+            shape: RoundedRectangleBorder(borderRadius: AppStyles.cardRadius),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Hedef Adı (örn: Tablet)'),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Aylık Ayrıntı',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 12),
-              ...monthlyGoalProgress.entries.map((entry) {
-                int index = monthlyGoalProgress.keys.toList().indexOf(
-                  entry.key,
-                );
-                double previousValue = index > 0
-                    ? monthlyGoalProgress.values.toList()[index - 1]
-                    : 0;
-                double monthlyAddition = entry.value - previousValue;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(entry.key),
-                      Text(
-                        '+ ₺${monthlyAddition.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.orange,
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Hedef Miktar (₺)'),
+                ),
+                const SizedBox(height: 12),
+                const Text('Renk Seçimi', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: _colorMap.keys.map((colorName) {
+                    return GestureDetector(
+                      onTap: () {
+                        setDialogState(() {
+                          selectedColor = colorName;
+                        });
+                      },
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: _colorMap[colorName],
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: selectedColor == colorName ? Colors.black : Colors.transparent,
+                            width: 2,
+                          ),
                         ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+              ElevatedButton(
+                onPressed: () async {
+                  final amount = double.tryParse(amountController.text);
+                  if (nameController.text.isNotEmpty && amount != null) {
+                    Navigator.pop(context);
+                    try {
+                      await ApiService.createGoal({
+                        'name': nameController.text.trim(),
+                        'amount': amount,
+                        'color': selectedColor,
+                        'is_completed': false,
+                      });
+                      await _loadData();
+                    } catch (e) {
+                       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.teal, foregroundColor: Colors.white),
+                child: const Text('Ekle'),
+              ),
+            ],
+          );
+        }
+      ),
+    );
+  }
+
+  Widget _buildGoalCard(Map<String, dynamic> goal) {
+    bool isCompleted = goal['is_completed'] == true || goal['is_completed'] == 1;
+    bool showDetails = _expandedGoals[goal['id']] ?? false;
+    Color goalCol = _colorMap[goal['color']] ?? Colors.purple;
+    double amount = (goal['amount'] as num).toDouble();
+    double currentProgress = _calculateCurrentProgressForGoal(goal['id'], amount);
+    Map<String, double> progressHistory = _getMonthlyProgressForGoal(goal['id'], amount);
+    double savedSoFar = progressHistory.values.isNotEmpty ? progressHistory.values.last : 0.0;
+    
+    final List<String> monthNames = [
+      'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
+    ];
+    String targetMonthKey = '${monthNames[selectedCalendarDate.month - 1]} ${selectedCalendarDate.year}';
+
+    return SingleChildScrollView(
+      physics: showDetails ? const ClampingScrollPhysics() : const NeverScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _expandedGoals[goal['id']] = !showDetails;
+              });
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    goalCol.withValues(alpha: isCompleted ? 0.4 : 0.8),
+                    goalCol.withValues(alpha: isCompleted ? 0.6 : 1.0),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: goalCol.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  goal['name'],
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (isCompleted) ...[
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                                ]
+                              ]
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '₺${amount.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 28,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Icon(
+                            showDetails
+                                ? Icons.expand_less
+                                : Icons.expand_more,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: 28,
+                            child: TextButton(
+                              onPressed: () => _showGoalCustomizeDialog(goal),
+                              style: TextButton.styleFrom(
+                                backgroundColor: Colors.white.withValues(alpha: 0.2),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: const Text(
+                                'Düzenle',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                );
-              }),
-            ],
+                ],
+              ),
+            ),
           ),
-        ),
+          if (showDetails) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: goalCol.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: goalCol.withValues(alpha: 0.3), width: 1.5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                       Text(
+                        'İlerleme',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: goalCol,
+                        ),
+                      ),
+                      Text(
+                        '${(currentProgress * 100).toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: goalCol,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => _deleteGoalConfirm(goal),
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        tooltip: 'Hedefi Sil',
+                      ),
+                    ]
+                   ),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: LinearProgressIndicator(
+                      value: currentProgress,
+                      minHeight: 12,
+                      backgroundColor: goalCol.withValues(alpha: 0.15),
+                      valueColor: AlwaysStoppedAnimation<Color>(goalCol),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Purchase Button Logic
+                  if (!isCompleted && currentProgress >= 1.0)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _purchaseGoalAction(goal),
+                        icon: const Icon(Icons.shopping_cart_checkout),
+                        label: const Text('Satın Al / Hedefi Tamamla'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  if (isCompleted)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green)
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                           Icon(Icons.check_circle, color: Colors.green),
+                           SizedBox(width: 8),
+                           Text('Bu hedef tamamlandı/satın alındı!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))
+                        ],
+                      ),
+                    ),
+                  
+                  const SizedBox(height: 16),
+                  Text(
+                    'Şimdiye kadar ₺${savedSoFar.toStringAsFixed(0)} biriktirdiniz.',
+                    style: TextStyle(color: goalCol.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Aylık İlerleme',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: goalCol,
+                    ),
+                  ),
+                  ...progressHistory.entries.toList().reversed.take(5).toList().reversed.toList().asMap().entries.map((
+                    entry,
+                  ) {
+                    int index = entry.key;
+                    // Find correct index in original history for previousValue calculation
+                    int originalIndex = progressHistory.length - progressHistory.entries.toList().reversed.take(5).length + index;
+                    
+                    String month = entry.value.key;
+                    double currentValue = entry.value.value;
+
+                    // Calculate monthly addition
+                    double previousValue = originalIndex > 0
+                        ? progressHistory.values.toList()[originalIndex - 1]
+                        : 0;
+                    double monthlyAddition = currentValue - previousValue;
+
+                    double percentage = (currentValue / amount) * 100;
+                    double monthlyPercentage =
+                        (monthlyAddition / amount) * 100;
+                    bool isPositive = monthlyAddition > 0;
+
+                    return _buildGoalProgressItem(
+                      month,
+                      monthlyAddition,
+                      currentValue,
+                      monthlyPercentage,
+                      percentage,
+                      isPositive,
+                      goalCol,
+                      amount,
+                    );
+                  }),
+                  if (progressHistory.length > 5) ...[
+                    const SizedBox(height: 8),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => _showAllProgressHistory(goal, progressHistory),
+                        child: Text(
+                          'Tümünü Gör (${progressHistory.length})',
+                          style: TextStyle(color: goalCol, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ]
+      )
+    );
+  }
+
+  Future<void> _purchaseGoalAction(Map<String, dynamic> goal) async {
+    try {
+      await ApiService.purchaseGoal(goal['id']);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${goal['name']} hedefini başarıyla satın aldınız!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      await _loadData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(
+            content: Text('Satın alma hatası: $e'),
+            backgroundColor: Colors.red,
+          )
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteGoalConfirm(Map<String, dynamic> goal) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hedefi Sil?'),
+        content: Text('${goal['name']} hedefini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.'),
         actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('İptal')),
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Kapat'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sil', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
+
+    if (confirmed == true) {
+      try {
+        await ApiService.deleteGoal(goal['id']);
+        await _loadData();
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hedef silindi')));
+        }
+      } catch (e) {
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+        }
+      }
+    }
   }
 
   Widget _buildTransactionItem(
@@ -1139,45 +1512,34 @@ class _HomePageState extends State<HomePage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isPositive
-            ? Colors.green.withValues(alpha: 0.1)
-            : Colors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isPositive ? Colors.green : Colors.red,
-          width: 1,
-        ),
+        color: AppColors.white,
+        borderRadius: AppStyles.cardRadius,
+        boxShadow: [AppStyles.subtleShadow],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            rate,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              Text(title, style: AppStyles.body.copyWith(fontWeight: FontWeight.bold)),
               Icon(
                 isPositive ? Icons.trending_up : Icons.trending_down,
-                color: isPositive ? Colors.green : Colors.red,
                 size: 16,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                change,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isPositive ? Colors.green : Colors.red,
-                  fontWeight: FontWeight.w600,
-                ),
+                color: isPositive ? AppColors.softGreen : AppColors.coral,
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Text(rate, style: AppStyles.heading2.copyWith(fontSize: 18)),
+          const SizedBox(height: 4),
+          Text(
+            change,
+            style: TextStyle(
+              fontSize: 12,
+              color: isPositive ? AppColors.softGreen : AppColors.coral,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -1194,25 +1556,81 @@ class _HomePageState extends State<HomePage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color, width: 1),
+        color: AppColors.white,
+        borderRadius: AppStyles.cardRadius,
+        boxShadow: [AppStyles.subtleShadow],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildIconContainer(icon, color),
+              Icon(
+                isPositive ? Icons.trending_up : Icons.trending_down,
+                size: 16,
+                color: isPositive ? AppColors.softGreen : AppColors.coral,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(title, style: AppStyles.body.copyWith(fontSize: 12)),
+          const SizedBox(height: 4),
+          Text(value, style: AppStyles.heading2.copyWith(fontSize: 16)),
+        ],
+      ),
+    );
+  }
+
+  void _showAllProgressHistory(Map<String, dynamic> goal, Map<String, double> history) {
+    Color goalCol = _colorMap[goal['color']] ?? Colors.purple;
+    double amount = (goal['amount'] as num).toDouble();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${goal['name']} - Tüm Geçmiş', style: TextStyle(color: goalCol, fontWeight: FontWeight.bold)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: history.entries.toList().asMap().entries.map((item) {
+                int index = item.key;
+                var entry = item.value;
+                
+                String month = entry.key;
+                double currentValue = entry.value;
+
+                double previousValue = index > 0
+                    ? history.values.toList()[index - 1]
+                    : 0;
+                double monthlyAddition = currentValue - previousValue;
+
+                double percentage = (currentValue / amount) * 100;
+                double monthlyPercentage = (monthlyAddition / amount) * 100;
+                bool isPositive = monthlyAddition > 0;
+
+                return _buildGoalProgressItem(
+                  month,
+                  monthlyAddition,
+                  currentValue,
+                  monthlyPercentage,
+                  percentage,
+                  isPositive,
+                  goalCol,
+                  amount,
+                );
+              }).toList().reversed.toList(),
             ),
           ),
-          const SizedBox(height: 8),
-          Icon(icon, color: color, size: 20),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Kapat'),
+          ),
         ],
       ),
     );
@@ -1225,6 +1643,8 @@ class _HomePageState extends State<HomePage> {
     double monthlyPercentage,
     double totalPercentage,
     bool isPositive,
+    Color goalColor,
+    double goalAmount,
   ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -1318,19 +1738,13 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  double _calculateCurrentProgress() {
-    if (monthlyGoalProgress.isEmpty) return 0;
-    double currentValue = monthlyGoalProgress.values.last;
-    return (currentValue / goalAmount).clamp(0.0, 1.0);
-  }
-
-  void _showGoalCustomizeDialog() {
+  void _showGoalCustomizeDialog(Map<String, dynamic> goal) {
     showDialog(
       context: context,
       builder: (BuildContext context) => _GoalCustomizeDialog(
-        initialName: goalName,
-        initialAmount: goalAmount,
-        initialColor: goalColor,
+        initialName: goal['name'],
+        initialAmount: (goal['amount'] as num).toDouble(),
+        initialColor: _colorMap[goal['color']] ?? Colors.purple,
         onSave: (newName, newAmount, newColor) async {
           // Find color string name
           String colorString = 'purple';
@@ -1339,16 +1753,12 @@ class _HomePageState extends State<HomePage> {
           });
 
           try {
-            await ApiService.updateGoal({
+            await ApiService.updateGoal(goal['id'], {
               'name': newName,
               'amount': newAmount,
               'color': colorString,
             });
-            setState(() {
-              goalName = newName;
-              goalAmount = newAmount;
-              goalColor = newColor;
-            });
+            await _loadData();
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -1482,8 +1892,8 @@ class _GoalCustomizeDialogState extends State<_GoalCustomizeDialog> {
             const SizedBox(height: 12),
             const Text('Renk Seç'),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children:
                   [
                     Colors.purple,
@@ -1501,17 +1911,24 @@ class _GoalCustomizeDialogState extends State<_GoalCustomizeDialog> {
                         });
                       },
                       child: Container(
-                        width: 50,
-                        height: 50,
+                        width: 35,
+                        height: 35,
                         decoration: BoxDecoration(
                           color: color,
-                          borderRadius: BorderRadius.circular(8),
+                          shape: BoxShape.circle,
                           border: Border.all(
                             color: isSelected
                                 ? Colors.black
                                 : Colors.transparent,
-                            width: 3,
+                            width: 2.5,
                           ),
+                          boxShadow: isSelected ? [
+                            BoxShadow(
+                              color: color.withValues(alpha: 0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            )
+                          ] : null,
                         ),
                       ),
                     );

@@ -88,6 +88,7 @@ class ApiService {
         body: json.encode(data),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
+        if (response.body.isEmpty) return {};
         return json.decode(response.body);
       } else {
         final body = json.decode(response.body);
@@ -188,8 +189,9 @@ class ApiService {
     return await put('/api/financial/summary', data);
   }
 
-  static Future<Map<String, dynamic>> getTransactions() async {
-    return await get('/api/transactions');
+  static Future<Map<String, dynamic>> getTransactions({int? year, int? month}) async {
+    String queryParams = (year != null && month != null) ? '?year=$year&month=$month' : '';
+    return await get('/api/transactions$queryParams');
   }
 
   static Future<Map<String, dynamic>> addTransaction(
@@ -235,14 +237,31 @@ class ApiService {
 
   // ── Goals ─────────────────────────────────────────────────────────────────
 
-  static Future<Map<String, dynamic>> getGoal() async {
-    return await get('/api/goals');
+  static Future<List<dynamic>> getGoals() async {
+    return await getList('/api/goals');
+  }
+
+  static Future<Map<String, dynamic>> createGoal(
+    Map<String, dynamic> goalData,
+  ) async {
+    return await post('/api/goals', goalData);
   }
 
   static Future<Map<String, dynamic>> updateGoal(
+    int id,
     Map<String, dynamic> goalData,
   ) async {
-    return await put('/api/goals', goalData);
+    return await put('/api/goals/$id', goalData);
+  }
+
+  static Future<Map<String, dynamic>> purchaseGoal(
+    int id,
+  ) async {
+    return await post('/api/goals/$id/purchase', {});
+  }
+  
+  static Future<void> deleteGoal(int id) async {
+    return await delete('/api/goals/$id');
   }
 }
 

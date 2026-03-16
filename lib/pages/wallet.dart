@@ -84,6 +84,8 @@ class WalletPage extends StatefulWidget {
   final double monthlyExpense;
   final double monthlySavings;
   final String? investmentProfile;
+  final List<Map<String, dynamic>> goals;
+  final List<Map<String, dynamic>> activities;
   final Function(String) onStartInvestmentTest;
   final Function() onRetakeInvestmentTest;
 
@@ -93,6 +95,8 @@ class WalletPage extends StatefulWidget {
     required this.monthlyExpense,
     required this.monthlySavings,
     required this.investmentProfile,
+    required this.goals,
+    required this.activities,
     required this.onStartInvestmentTest,
     required this.onRetakeInvestmentTest,
     super.key,
@@ -128,6 +132,12 @@ class _WalletPageState extends State<WalletPage> {
 
               const SizedBox(height: 32),
 
+              const Text('Hedefler Özeti', style: AppStyles.subheading),
+              const SizedBox(height: 16),
+              _buildGoalsSummaryCard(),
+
+              const SizedBox(height: 32),
+
               // INVESTMENT SECTION
               const Text('Yatırım Stratejisi', style: AppStyles.subheading),
               const SizedBox(height: 16),
@@ -148,52 +158,6 @@ class _WalletPageState extends State<WalletPage> {
   Widget _buildHeaderSection(double balance) {
     return Column(
       children: [
-        // Top Row: Avatar and Greeting
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.mediumGray.withValues(alpha: 0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.person, color: AppColors.darkGray),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Hoşgeldiniz,',
-                      style: TextStyle(fontSize: 14, color: AppColors.darkGray),
-                    ),
-                    Text(
-                      widget.userName.isNotEmpty ? widget.userName : 'Kullanıcı',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.black,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            IconButton(
-              onPressed: () {},
-              icon: const Icon(
-                Icons.notifications_outlined,
-                color: AppColors.darkGray,
-                size: 28,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
         // Balance Card: Gradient Style (Green to Teal)
         Container(
           width: double.infinity,
@@ -219,24 +183,6 @@ class _WalletPageState extends State<WalletPage> {
                       color: Colors.white,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      '+2.4%',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
                     ),
                   ),
                 ],
@@ -296,6 +242,72 @@ class _WalletPageState extends State<WalletPage> {
           isHorizontal: true,
         ),
       ],
+    );
+  }
+
+  Widget _buildGoalsSummaryCard() {
+    int activeGoals = widget.goals.where((g) => g['is_completed'] != true && g['is_completed'] != 1).length;
+    int completedGoals = widget.goals.where((g) => g['is_completed'] == true || g['is_completed'] == 1).length;
+    
+    double totalGoalSavings = 0.0;
+    for (var activity in widget.activities) {
+      if (activity['goal_id'] != null) {
+        if (activity['type'] == 'gelir') {
+          totalGoalSavings += (activity['amount'] as num).toDouble();
+        } else if (activity['type'] == 'gider') {
+          totalGoalSavings -= (activity['amount'] as num).toDouble();
+        }
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: AppStyles.cardRadius,
+        boxShadow: [AppStyles.cardShadow],
+        border: Border.all(color: AppColors.purple.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _buildIconContainer(Icons.track_changes, AppColors.purple),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Toplanan Hedef Tasarrufu', style: TextStyle(color: AppColors.darkGray, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Text('₺${totalGoalSavings.toStringAsFixed(0)}', style: AppStyles.heading2),
+                ],
+              ),
+            ]
+          ),
+          const SizedBox(height: 20),
+          const Divider(),
+          const SizedBox(height: 12),
+          Row(
+             mainAxisAlignment: MainAxisAlignment.spaceAround,
+             children: [
+               Column(
+                 children: [
+                   Text(activeGoals.toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: AppColors.teal)),
+                   const Text('Aktif Hedefler', style: TextStyle(color: AppColors.darkGray, fontSize: 13)),
+                 ],
+               ),
+               Column(
+                 children: [
+                   Text(completedGoals.toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: AppColors.softGreen)),
+                   const Text('Tamamlananlar', style: TextStyle(color: AppColors.darkGray, fontSize: 13)),
+                 ],
+               ),
+             ]
+          )
+        ],
+      ),
     );
   }
 

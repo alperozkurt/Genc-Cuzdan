@@ -821,369 +821,203 @@ class _HomePageState extends State<HomePage> {
     required Color color,
     String? buttonLabel,
     bool showActionButtons = false,
-    VoidCallback? onIncomePressed,
-    VoidCallback? onExpensePressed,
+    VoidCallback? onActionPressed,
   }) {
     bool isTasarruf = title == 'Tasarruf';
 
-    return GestureDetector(
-      onTap: () {
-        if (title == 'Gelir') {
-          _showAddIncomeDialog();
-        } else if (title == 'Gider') {
-          _showAddExpenseDialog();
-        } else if (title == 'Tasarruf') {
-          _showSavingsDetailsDialog();
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              color.withValues(alpha: 0.15),
-              color.withValues(alpha: 0.05),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: isTasarruf ? MainAxisSize.max : MainAxisSize.min,
-          children: [
-            if (isTasarruf)
-              // Tasarruf Card: Expanded Layout
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '₺${amount.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: AppStyles.cardRadius,
+        boxShadow: [AppStyles.subtleShadow],
+      ),
+      child: isTasarruf
+          ? Row(
+              children: [
+                _buildIconContainer(icon, color),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(icon, color: color, size: 36),
+                      Text(title, style: AppStyles.body.copyWith(fontSize: 12)),
+                      const SizedBox(height: 4),
+                      Text(
+                        '₺${amount.toStringAsFixed(2)}',
+                        style: AppStyles.heading2.copyWith(fontSize: 20),
                       ),
                     ],
                   ),
-                  if (showActionButtons) ...[
-                    const SizedBox(height: 20),
-                    // Income and Expense Buttons Row
-                    Row(
-                      children: [
-                        // Gelir Ekle Button
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: onIncomePressed,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                            ),
-                            child: const Text(
-                              'Gelir',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        // Gider Ekle Button
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: onExpensePressed,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                            ),
-                            child: const Text(
-                              'Gider',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              )
-            else
-              // Default Card: Compact Layout
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(icon, color: color, size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          '₺${amount.toStringAsFixed(0)}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: color,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            // Button if available
-            if (buttonLabel != null) ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                height: 32,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (title == 'Gelir') {
-                      _showAddIncomeDialog();
-                    } else if (title == 'Gider') {
-                      _showAddExpenseDialog();
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: color,
+                ),
+                if (showActionButtons)
+                  IconButton(
+                    onPressed: onActionPressed,
+                    icon: const Icon(Icons.add_circle, color: AppColors.teal, size: 32),
                     padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
-                  child: Text(
-                    buttonLabel,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildIconContainer(icon, color),
+                const SizedBox(height: 12),
+                Text(title, style: AppStyles.body.copyWith(fontSize: 12)),
+                const SizedBox(height: 4),
+                Text(
+                  '₺${amount.toStringAsFixed(0)}',
+                  style: AppStyles.heading2.copyWith(fontSize: 18),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildIconContainer(IconData icon, Color color) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, color: color, size: 20),
+    );
+  }
+
+  void _showAddTransactionDialog() {
+    final amountController = TextEditingController();
+    final descriptionController = TextEditingController();
+    String selectedType = 'gelir'; // default
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('İşlem Ekle', style: AppStyles.subheading),
+            shape: RoundedRectangleBorder(borderRadius: AppStyles.cardRadius),
+            backgroundColor: AppColors.white,
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                        value: 'gelir',
+                        label: Text('Gelir'),
+                        icon: Icon(Icons.arrow_upward_rounded),
+                      ),
+                      ButtonSegment(
+                        value: 'gider',
+                        label: Text('Gider'),
+                        icon: Icon(Icons.arrow_downward_rounded),
+                      ),
+                    ],
+                    selected: {selectedType},
+                    onSelectionChanged: (Set<String> newSelection) {
+                      setDialogState(() {
+                        selectedType = newSelection.first;
+                      });
+                    },
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return selectedType == 'gelir'
+                              ? AppColors.softGreen.withValues(alpha: 0.2)
+                              : AppColors.coral.withValues(alpha: 0.2);
+                        }
+                        return Colors.transparent;
+                      }),
+                      foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return selectedType == 'gelir' ? AppColors.darkGreen : AppColors.coral;
+                        }
+                        return AppColors.darkGray;
+                      }),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: 'Miktar (₺)',
+                      prefixIcon: const Icon(Icons.money),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: descriptionController,
+                    decoration: InputDecoration(
+                      hintText: 'Açıklama (opsiyonel)',
+                      prefixIcon: const Icon(Icons.description),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('İptal', style: TextStyle(color: AppColors.darkGray)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final amount = double.tryParse(amountController.text);
+                  if (amount != null && amount > 0) {
+                    Navigator.pop(context);
+                    try {
+                      await ApiService.addTransaction({
+                        'amount': amount,
+                        'description': descriptionController.text.isEmpty
+                            ? (selectedType == 'gelir' ? 'Gelir' : 'Gider')
+                            : descriptionController.text,
+                        'type': selectedType,
+                        'date': DateTime.now().toIso8601String().substring(0, 10),
+                      });
+                      await _loadData(); // reload from server
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '₺${amount.toStringAsFixed(0)} ${selectedType == 'gelir' ? 'gelir' : 'gider'} eklendi',
+                            ),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Hata: $e'),
+                            backgroundColor: AppColors.coral,
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.teal,
+                  foregroundColor: AppColors.white,
+                  shape: RoundedRectangleBorder(borderRadius: AppStyles.buttonRadius),
                 ),
+                child: const Text('Ekle'),
               ),
             ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAddIncomeDialog() {
-    final amountController = TextEditingController();
-    final descriptionController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Gelir Ekle'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: 'Miktar (₺)',
-                  prefixIcon: const Icon(Icons.money),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descriptionController,
-                decoration: InputDecoration(
-                  hintText: 'Açıklama (opsiyonel)',
-                  prefixIcon: const Icon(Icons.description),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final amount = double.tryParse(amountController.text);
-              if (amount != null && amount > 0) {
-                Navigator.pop(context);
-                try {
-                  await ApiService.addTransaction({
-                    'amount': amount,
-                    'description': descriptionController.text.isEmpty
-                        ? 'Gelir'
-                        : descriptionController.text,
-                    'type': 'gelir',
-                    'date': DateTime.now().toIso8601String().substring(0, 10),
-                  });
-                  await _loadData(); // reload from server
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          '₺${amount.toStringAsFixed(0)} gelir eklendi',
-                        ),
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Hata: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              }
-            },
-            child: const Text('Ekle'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddExpenseDialog() {
-    final amountController = TextEditingController();
-    final descriptionController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Gider Ekle'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: 'Miktar (₺)',
-                  prefixIcon: const Icon(Icons.money),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descriptionController,
-                decoration: InputDecoration(
-                  hintText: 'Açıklama (opsiyonel)',
-                  prefixIcon: const Icon(Icons.description),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final amount = double.tryParse(amountController.text);
-              if (amount != null && amount > 0) {
-                Navigator.pop(context);
-                try {
-                  await ApiService.addTransaction({
-                    'amount': amount,
-                    'description': descriptionController.text.isEmpty
-                        ? 'Gider'
-                        : descriptionController.text,
-                    'type': 'gider',
-                    'date': DateTime.now().toIso8601String().substring(0, 10),
-                  });
-                  await _loadData(); // reload from server
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          '₺${amount.toStringAsFixed(0)} gider eklendi',
-                        ),
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Hata: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              }
-            },
-            child: const Text('Ekle'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

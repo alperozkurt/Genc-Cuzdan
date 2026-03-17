@@ -7,8 +7,8 @@ class MarketService {
   static const String _btcUrl = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=try';
 
   static const Map<String, String> _headers = {
-    'User-Agent': 'GencCuzdan/1.0',
     'Accept': 'application/json',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
   };
 
   static const Map<String, double> _fallbacks = {
@@ -50,12 +50,13 @@ class MarketService {
       if (response != null) {
         final data = json.decode(response.body);
         if (data['result'] == 'success' && data['rates'] != null) {
-          usdTry = (data['rates']['TRY'] as num).toDouble();
-          double eurUsd = (data['rates']['EUR'] as num).toDouble();
+          usdTry = double.tryParse(data['rates']['TRY'].toString()) ?? usdTry;
+          double eurUsd = double.tryParse(data['rates']['EUR'].toString()) ?? 1.0;
           
           results['USD/TL'] = usdTry;
           // EUR/TRY = USD/TRY / (USD to EUR rate)
           results['EUR/TL'] = usdTry / eurUsd;
+          print('Currency processed: USD/TL=$usdTry, EUR/TL=${results['EUR/TL']}');
         }
       }
     } catch (e) {
@@ -68,9 +69,12 @@ class MarketService {
       if (response != null) {
         final data = json.decode(response.body);
         if (data['price'] != null) {
-          double goldUsdPerOunce = (data['price'] as num).toDouble();
-          // Gram Gold TL = (Ounce Price / 31.1034768) * usdTry
-          results['Gram Altın'] = (goldUsdPerOunce / 31.1034768) * usdTry;
+          double goldUsdPerOunce = double.tryParse(data['price'].toString()) ?? 0.0;
+          if (goldUsdPerOunce > 0) {
+            // Gram Gold TL = (Ounce Price / 31.1034768) * usdTry
+            results['Gram Altın'] = (goldUsdPerOunce / 31.1034768) * usdTry;
+            print('Gold processed: price=$goldUsdPerOunce, result=${results['Gram Altın']}');
+          }
         }
       }
     } catch (e) {
@@ -83,7 +87,8 @@ class MarketService {
       if (response != null) {
         final data = json.decode(response.body);
         if (data['bitcoin'] != null && data['bitcoin']['try'] != null) {
-          results['BTC/TL'] = (data['bitcoin']['try'] as num).toDouble();
+          results['BTC/TL'] = double.tryParse(data['bitcoin']['try'].toString()) ?? results['BTC/TL']!;
+          print('BTC processed: ${results['BTC/TL']}');
         }
       }
     } catch (e) {

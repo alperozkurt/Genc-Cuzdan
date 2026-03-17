@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'terms.dart';
 import 'wallet.dart';
 import 'profile.dart';
@@ -131,6 +132,7 @@ class _HomePageState extends State<HomePage> {
 
   // Investment test variables
   String? investmentProfile;
+  Timer? _marketTimer;
 
   @override
   void initState() {
@@ -138,6 +140,17 @@ class _HomePageState extends State<HomePage> {
     _confettiController = ConfettiController(duration: const Duration(seconds: 3));
     _nameController.text = savedName;
     _loadData();
+    
+    // Refresh market data every 5 minutes
+    _marketTimer = Timer.periodic(const Duration(minutes: 5), (_) => _loadMarketData());
+  }
+
+  @override
+  void dispose() {
+    _marketTimer?.cancel();
+    _confettiController.dispose();
+    _nameController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -267,12 +280,6 @@ class _HomePageState extends State<HomePage> {
     _loadCalendarData();
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _confettiController.dispose();
-    super.dispose();
-  }
 
   Map<String, double> _getMonthlyProgressForGoal(int goalId, double goalAmount) {
     Map<String, double> netPerMonth = {};
@@ -994,7 +1001,7 @@ class _HomePageState extends State<HomePage> {
                       ...goals.where((g) => g['is_completed'] != true && g['is_completed'] != 1).map((goal) {
                         return DropdownMenuItem<int>(
                           value: goal['id'],
-                          child: Text(goal['name']),
+                          child: Text(goal['title']),
                         );
                       }),
                     ],
@@ -1200,12 +1207,12 @@ class _HomePageState extends State<HomePage> {
                   if (nameController.text.isNotEmpty && amountValue != null) {
                     Navigator.pop(context);
                     try {
-                      await ApiService.createGoal(
-                        title: nameController.text.trim(),
-                        targetAmount: amountValue,
-                        category: selectedCategory,
-                        color: selectedColor,
-                      );
+                      await ApiService.createGoal({
+                        'title': nameController.text.trim(),
+                        'target_amount': amountValue,
+                        'category': selectedCategory,
+                        'color': selectedColor,
+                      });
                       await _loadData();
                     } catch (e) {
                        if (mounted) {
@@ -1228,7 +1235,7 @@ class _HomePageState extends State<HomePage> {
     bool isCompleted = goal['is_completed'] == true || goal['is_completed'] == 1;
     bool showDetails = _expandedGoals[goal['id']] ?? false;
     Color goalCol = _colorMap[goal['color']] ?? Colors.purple;
-    double amount = (goal['amount'] as num).toDouble();
+    double amount = (goal['target_amount'] as num).toDouble();
     double currentProgress = _calculateCurrentProgressForGoal(goal['id'], amount);
     Map<String, double> progressHistory = _getMonthlyProgressForGoal(goal['id'], amount);
     double savedSoFar = progressHistory.values.isNotEmpty ? progressHistory.values.last : 0.0;
@@ -1285,7 +1292,7 @@ class _HomePageState extends State<HomePage> {
                             Row(
                               children: [
                                 Text(
-                                  goal['name'],
+                                  goal['title'],
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 20,
@@ -1509,7 +1516,7 @@ class _HomePageState extends State<HomePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${goal['name']} hedefini başarıyla satın aldınız!'),
+            content: Text('${goal['title']} hedefini başarıyla satın aldınız!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -1533,7 +1540,7 @@ class _HomePageState extends State<HomePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Hedefi Sil?'),
-        content: Text('${goal['name']} hedefini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.'),
+        content: Text('${goal['title']} hedefini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('İptal')),
           TextButton(
@@ -1687,12 +1694,12 @@ class _HomePageState extends State<HomePage> {
 
   void _showAllProgressHistory(Map<String, dynamic> goal, Map<String, double> history) {
     Color goalCol = _colorMap[goal['color']] ?? Colors.purple;
-    double amount = (goal['amount'] as num).toDouble();
+    double amount = (goal['target_amount'] as num).toDouble();
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${goal['name']} - Tüm Geçmiş', style: TextStyle(color: goalCol, fontWeight: FontWeight.bold)),
+        title: Text('${goal['title']} - Tüm Geçmiş', style: TextStyle(color: goalCol, fontWeight: FontWeight.bold)),
         content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
@@ -1844,8 +1851,8 @@ class _HomePageState extends State<HomePage> {
     showDialog(
       context: context,
       builder: (BuildContext context) => _GoalCustomizeDialog(
-        initialName: goal['name'],
-        initialAmount: (goal['amount'] as num).toDouble(),
+        initialName: goal['title'],
+        initialAmount: (goal['target_amount'] as num).toDouble(),
         initialColor: _colorMap[goal['color']] ?? Colors.purple,
         onSave: (newName, newAmount, newColor) async {
           // Find color string name
@@ -1856,8 +1863,8 @@ class _HomePageState extends State<HomePage> {
 
           try {
             await ApiService.updateGoal(goal['id'], {
-              'name': newName,
-              'amount': newAmount,
+              'title': newName,
+              'target_amount': newAmount,
               'color': colorString,
             });
             await _loadData();

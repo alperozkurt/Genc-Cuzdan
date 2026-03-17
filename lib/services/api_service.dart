@@ -255,18 +255,10 @@ class ApiService {
     return await getList('/api/goals');
   }
 
-  static Future<Map<String, dynamic>> createGoal({
-    required String title,
-    required double targetAmount,
-    String category = 'Genel',
-    String color = 'blue',
-  }) async {
-    return await post('/api/goals', {
-      'title': title,
-      'target_amount': targetAmount,
-      'category': category,
-      'color': color,
-    });
+  static Future<Map<String, dynamic>> createGoal(
+    Map<String, dynamic> goalData,
+  ) async {
+    return await post('/api/goals', goalData);
   }
 
   static Future<Map<String, dynamic>> updateGoal(

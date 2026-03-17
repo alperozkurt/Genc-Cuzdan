@@ -4,6 +4,7 @@ import 'wallet.dart';
 import 'profile.dart';
 import '../services/api_service.dart';
 import '../services/market_service.dart';
+import 'package:confetti/confetti.dart';
 
 // --- DESIGN SYSTEM CONSTANTS (Mapped from wallet.dart) ---
 class AppColors {
@@ -113,12 +114,28 @@ class _HomePageState extends State<HomePage> {
   DateTime selectedCalendarDate = DateTime.now();
   int _currentGoalIndex = 0;
 
+  late ConfettiController _confettiController;
+
+  final List<String> _categories = [
+    'Gıda',
+    'Ulaşım',
+    'Eğlence',
+    'Sağlık',
+    'Eğitim',
+    'Alışveriş',
+    'Abonelik',
+    'Kira/Fatura',
+    'Spor',
+    'Diğer'
+  ];
+
   // Investment test variables
   String? investmentProfile;
 
   @override
   void initState() {
     super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
     _nameController.text = savedName;
     _loadData();
   }
@@ -253,6 +270,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _nameController.dispose();
+    _confettiController.dispose();
     super.dispose();
   }
 
@@ -331,9 +349,28 @@ class _HomePageState extends State<HomePage> {
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.black),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildBody(),
+      body: Stack(
+        children: [
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _buildBody(),
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirectionality: BlastDirectionality.explosive,
+              shouldLoop: false,
+              colors: const [
+                Colors.green,
+                Colors.blue,
+                Colors.pink,
+                Colors.orange,
+                Colors.purple
+              ],
+            ),
+          ),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -856,6 +893,8 @@ class _HomePageState extends State<HomePage> {
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
     String selectedType = 'gelir'; // default
+    String selectedCategory = 'Diğer';
+    bool isRecurring = false;
     int? selectedGoalId;
     
     if (goals.isNotEmpty && _currentGoalIndex < goals.length) {
@@ -971,6 +1010,41 @@ class _HomePageState extends State<HomePage> {
                         ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    value: selectedCategory,
+                    items: _categories.map((cat) {
+                      return DropdownMenuItem<String>(
+                        value: cat,
+                        child: Text(cat),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedCategory = value ?? 'Diğer';
+                      });
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Kategori',
+                      prefixIcon: const Icon(Icons.category),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    title: const Text('Aylık Düzenli (Abonelik vb.)', style: TextStyle(fontSize: 14)),
+                    secondary: const Icon(Icons.repeat),
+                    value: isRecurring,
+                    onChanged: (bool value) {
+                      setDialogState(() {
+                        isRecurring = value;
+                        if (value) selectedCategory = 'Abonelik';
+                      });
+                    },
+                  ),
                 ],
               ),
             ),
@@ -988,18 +1062,17 @@ class _HomePageState extends State<HomePage> {
                   if (amount != null && amount > 0) {
                     Navigator.pop(context);
                     try {
-                      await ApiService.addTransaction({
-                        'amount': amount,
-                        'description': descriptionController.text.isEmpty
+                      await ApiService.addTransaction(
+                        amount: amount,
+                        description: descriptionController.text.isEmpty
                             ? (selectedType == 'gelir' ? 'Gelir' : 'Gider')
                             : descriptionController.text,
-                        'type': selectedType,
-                        'date': DateTime.now().toIso8601String().substring(
-                          0,
-                          10,
-                        ),
-                        if (selectedGoalId != null) 'goal_id': selectedGoalId,
-                      });
+                        type: selectedType,
+                        date: DateTime.now().toIso8601String().substring(0, 10),
+                        goalId: selectedGoalId,
+                        category: selectedCategory,
+                        isRecurring: isRecurring,
+                      );
                       await _loadData(); // reload from server
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -1043,6 +1116,7 @@ class _HomePageState extends State<HomePage> {
     final nameController = TextEditingController();
     final amountController = TextEditingController();
     String selectedColor = 'purple';
+    String selectedCategory = 'Diğer';
 
     showDialog(
       context: context,
@@ -1051,65 +1125,92 @@ class _HomePageState extends State<HomePage> {
           return AlertDialog(
             title: const Text('Yeni Hedef Oluştur', style: AppStyles.subheading),
             shape: RoundedRectangleBorder(borderRadius: AppStyles.cardRadius),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Hedef Adı (örn: Tablet)'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: amountController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Hedef Miktar (₺)'),
-                ),
-                const SizedBox(height: 12),
-                const Text('Renk Seçimi', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: _colorMap.keys.map((colorName) {
-                    return GestureDetector(
-                      onTap: () {
-                        setDialogState(() {
-                          selectedColor = colorName;
-                        });
-                      },
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: _colorMap[colorName],
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: selectedColor == colorName ? Colors.black : Colors.transparent,
-                            width: 2,
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Hedef Adı (örn: Tablet)'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Hedef Miktar (₺)'),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    value: selectedCategory,
+                    items: _categories.map((cat) {
+                      return DropdownMenuItem<String>(
+                        value: cat,
+                        child: Text(cat),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedCategory = value ?? 'Diğer';
+                      });
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Kategori',
+                      prefixIcon: const Icon(Icons.category),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Renk Seçimi', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: _colorMap.keys.map((colorName) {
+                      return GestureDetector(
+                        onTap: () {
+                          setDialogState(() {
+                            selectedColor = colorName;
+                          });
+                        },
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: _colorMap[colorName],
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: selectedColor == colorName ? Colors.black : Colors.transparent,
+                              width: 2,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
               ElevatedButton(
                 onPressed: () async {
-                  final amount = double.tryParse(amountController.text);
-                  if (nameController.text.isNotEmpty && amount != null) {
+                  final amountValue = double.tryParse(amountController.text);
+                  if (nameController.text.isNotEmpty && amountValue != null) {
                     Navigator.pop(context);
                     try {
-                      await ApiService.createGoal({
-                        'name': nameController.text.trim(),
-                        'amount': amount,
-                        'color': selectedColor,
-                        'is_completed': false,
-                      });
+                      await ApiService.createGoal(
+                        title: nameController.text.trim(),
+                        targetAmount: amountValue,
+                        category: selectedCategory,
+                        color: selectedColor,
+                      );
                       await _loadData();
                     } catch (e) {
-                       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                       if (mounted) {
+                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                       }
                     }
                   }
                 },
@@ -1412,6 +1513,7 @@ class _HomePageState extends State<HomePage> {
             backgroundColor: Colors.green,
           ),
         );
+        _confettiController.play();
       }
       await _loadData();
     } catch (e) {

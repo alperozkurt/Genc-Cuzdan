@@ -194,10 +194,24 @@ class ApiService {
     return await get('/api/transactions$queryParams');
   }
 
-  static Future<Map<String, dynamic>> addTransaction(
-    Map<String, dynamic> transaction,
-  ) async {
-    return await post('/api/transactions', transaction);
+  static Future<Map<String, dynamic>> addTransaction({
+    required String description,
+    required double amount,
+    required String type,
+    String? date,
+    int? goalId,
+    String category = 'Genel',
+    bool isRecurring = false,
+  }) async {
+    return await post('/api/transactions', {
+      'description': description,
+      'amount': amount,
+      'type': type,
+      'date': date,
+      'goal_id': goalId,
+      'category': category,
+      'is_recurring': isRecurring,
+    });
   }
 
   static Future<Map<String, dynamic>> updateTransaction(
@@ -241,10 +255,18 @@ class ApiService {
     return await getList('/api/goals');
   }
 
-  static Future<Map<String, dynamic>> createGoal(
-    Map<String, dynamic> goalData,
-  ) async {
-    return await post('/api/goals', goalData);
+  static Future<Map<String, dynamic>> createGoal({
+    required String title,
+    required double targetAmount,
+    String category = 'Genel',
+    String color = 'blue',
+  }) async {
+    return await post('/api/goals', {
+      'title': title,
+      'target_amount': targetAmount,
+      'category': category,
+      'color': color,
+    });
   }
 
   static Future<Map<String, dynamic>> updateGoal(

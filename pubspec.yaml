@@ -41,6 +41,9 @@ dependencies:
   # Local storage for tokens and user data
   shared_preferences: ^2.2.0
 
+  # Confetti animation
+  confetti: ^0.7.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

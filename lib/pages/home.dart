@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
 import 'terms.dart';
 import 'wallet.dart';
 import 'profile.dart';
 import '../services/api_service.dart';
 import '../services/market_service.dart';
 import 'package:confetti/confetti.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/design_system.dart';
 
 // HomePage now uses DesignSystem and unified theme.
@@ -40,15 +44,31 @@ class _HomePageState extends State<HomePage> {
 
   // Goal tracking state
   List<Map<String, dynamic>> goals = [];
-  Map<int, bool> _expandedGoals = {}; 
 
   // Market Rates Data
   Map<String, double> liveMarketRates = {
-    'USD/TL': 44.36,
-    'EUR/TL': 51.45,
-    'Gram Altın': 6500.0,
-    'BTC/TL': 3160000.0,
+    'USD/TL': 44.36, 'EUR/TL': 51.45, 'GBP/TL': 56.20, 'JPY/TL': 0.296,
+    'CHF/TL': 50.10, 'CNY/TL': 6.10,
+    'Gram Altın': 6500.0, 'Gümüş': 55.0,
+    'BTC/TL': 3160000.0, 'ETH/TL': 72000.0,
   };
+
+  // Currency registry — all available currencies with metadata
+  static final List<Map<String, dynamic>> _currencyRegistry = [
+    {'key': 'USD/TL', 'label': 'ABD Doları', 'symbol': '\$', 'iconData': Icons.attach_money, 'color': const Color(0xFF10B981)},
+    {'key': 'EUR/TL', 'label': 'Euro', 'symbol': '€', 'iconData': Icons.euro, 'color': const Color(0xFF6366F1)},
+    {'key': 'GBP/TL', 'label': 'İngiliz Sterlini', 'symbol': '£', 'iconData': Icons.currency_pound, 'color': const Color(0xFF8B5CF6)},
+    {'key': 'Gram Altın', 'label': 'Gram Altın', 'symbol': '₺', 'iconData': Icons.diamond, 'color': const Color(0xFFF59E0B)},
+    {'key': 'BTC/TL', 'label': 'Bitcoin', 'symbol': '₺', 'iconData': Icons.currency_bitcoin, 'color': const Color(0xFFF97316)},
+    {'key': 'ETH/TL', 'label': 'Ethereum', 'symbol': '₺', 'iconData': Icons.hexagon_outlined, 'color': const Color(0xFF6366F1)},
+    {'key': 'JPY/TL', 'label': 'Japon Yeni', 'symbol': '¥', 'iconData': Icons.currency_yen, 'color': const Color(0xFFEF4444)},
+    {'key': 'CHF/TL', 'label': 'İsviçre Frangı', 'symbol': 'Fr', 'iconData': Icons.money, 'color': const Color(0xFFDC2626)},
+    {'key': 'Gümüş', 'label': 'Gümüş (gram)', 'symbol': '₺', 'iconData': Icons.grain, 'color': const Color(0xFF94A3B8)},
+    {'key': 'CNY/TL', 'label': 'Çin Yuanı', 'symbol': '¥', 'iconData': Icons.currency_yuan, 'color': const Color(0xFFDC2626)},
+  ];
+
+  // Selected currencies for dashboard (max 6, min 1)
+  List<String> _selectedCurrencies = ['USD/TL', 'EUR/TL', 'Gram Altın', 'BTC/TL'];
 
   // Color mapping helper for API
   final Map<String, Color> _colorMap = {
@@ -78,6 +98,20 @@ class _HomePageState extends State<HomePage> {
     'Diğer'
   ];
 
+  bool _showCompletedGoals = false;
+  final List<Map<String, dynamic>> _goalIconOptions = [
+    {'label': 'Genel', 'iconData': Icons.stars_rounded, 'key': 'stars_rounded'},
+    {'label': 'Ev', 'iconData': Icons.home_rounded, 'key': 'home_rounded'},
+    {'label': 'Araç', 'iconData': Icons.directions_car_rounded, 'key': 'directions_car_rounded'},
+    {'label': 'Eğitim', 'iconData': Icons.school_rounded, 'key': 'school_rounded'},
+    {'label': 'Tatil', 'iconData': Icons.flight_takeoff_rounded, 'key': 'flight_takeoff_rounded'},
+    {'label': 'Teknoloji', 'iconData': Icons.computer_rounded, 'key': 'computer_rounded'},
+  ];
+
+  IconData _getIconData(String key) {
+    return _goalIconOptions.firstWhere((e) => e['key'] == key, orElse: () => _goalIconOptions.first)['iconData'];
+  }
+
   // Investment test variables
   String? investmentProfile;
   Timer? _marketTimer;
@@ -87,6 +121,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 3));
     _nameController.text = savedName;
+    _loadSelectedCurrencies();
     _loadData();
     
     // Refresh market data every 5 minutes
@@ -203,6 +238,22 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       print('Error loading market data: $e');
     }
+  }
+
+  Future<void> _loadSelectedCurrencies() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('selected_currencies');
+    if (saved != null) {
+      final list = List<String>.from(json.decode(saved));
+      if (list.isNotEmpty && list.length <= 6) {
+        setState(() => _selectedCurrencies = list);
+      }
+    }
+  }
+
+  Future<void> _saveSelectedCurrencies() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selected_currencies', json.encode(_selectedCurrencies));
   }
 
   Future<void> _loadCalendarData() async {
@@ -466,51 +517,18 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 24),
 
-          // Aktif ve Eski Hedefler Section
+          // Aktif ve Eski Hedefler Section — Vertical Grid
           if (goals.isNotEmpty) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Hedeflerim (${goals.length})',
-                  style: DesignSystem.subheading(),
-                ),
-                if (goals.length > 1)
-                  Text(
-                    'Kaydır →',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  ),
-              ],
+            Text(
+              'Hedeflerim',
+              style: DesignSystem.heading(size: 20),
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: _expandedGoals.values.contains(true) ? 480 : 120,
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                scrollDirection: Axis.horizontal,
-                itemCount: goals.length,
-                itemBuilder: (context, index) {
-                  // Sort: active goals first
-                  final sorted = List<Map<String, dynamic>>.from(goals)
-                    ..sort((a, b) {
-                      final ac = (a['is_completed'] == true || a['is_completed'] == 1) ? 1 : 0;
-                      final bc = (b['is_completed'] == true || b['is_completed'] == 1) ? 1 : 0;
-                      return ac.compareTo(bc);
-                    });
-                  final goal = sorted[index];
-                  bool isSmall = goals.length > 1;
-                  return Container(
-                    width: MediaQuery.of(context).size.width * (isSmall ? 0.85 : 0.92),
-                    padding: const EdgeInsets.only(right: 12.0),
-                    child: _buildGoalCard(goal),
-                  );
-                },
-              ),
-            ),
+            const SizedBox(height: 16),
+            _buildGoalsTabbedSection(),
           ] else
              const Padding(
                padding: EdgeInsets.symmetric(vertical: 24),
-               child: Center(child: Text('Aktif hedefiniz bulunmamaktadır', style: TextStyle(color: Colors.grey))),
+               child: Center(child: Text('Henüz hiç hedefiniz yok. Tasarruf etmeye başlayın!', style: TextStyle(color: Colors.grey))),
              ),
 
           const SizedBox(height: 24),
@@ -554,54 +572,26 @@ class _HomePageState extends State<HomePage> {
           _buildActivityCalendar(),
           const SizedBox(height: 32),
 
-          // Exchange Rates Section
-          Text('Döviz Kurları', style: DesignSystem.subheading()),
-          const SizedBox(height: 16),
+          // Exchange Rates Section — Dynamic with selection
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: _buildExchangeRateCard(
-                  title: 'USD/TL',
-                  rate: (liveMarketRates['USD/TL'] ?? 34.52).toStringAsFixed(2),
-                  change: 'Canlı',
-                  isPositive: true,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildExchangeRateCard(
-                  title: 'EUR/TL',
-                  rate: (liveMarketRates['EUR/TL'] ?? 37.89).toStringAsFixed(2),
-                  change: 'Canlı',
-                  isPositive: true,
+              Text('Döviz Kurları', style: DesignSystem.subheading()),
+              IconButton(
+                onPressed: _showCurrencySelectionDialog,
+                icon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: DesignSystem.primaryIndigo.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.tune_rounded, color: DesignSystem.primaryIndigo, size: 18),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildCommodityCard(
-                  title: 'Gram Altın',
-                  value: '₺${(liveMarketRates['Gram Altın'] ?? 2445.75).toStringAsFixed(2)}',
-                  icon: Icons.monetization_on,
-                  color: Colors.amber,
-                  isPositive: true,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildCommodityCard(
-                  title: 'BTC/TL',
-                  value: '₺${(liveMarketRates['BTC/TL'] ?? 1352450.0).toStringAsFixed(0)}',
-                  icon: Icons.currency_bitcoin_rounded,
-                  color: Colors.orange,
-                  isPositive: true,
-                ),
-              ),
-            ],
-          ),
+          const SizedBox(height: 12),
+          _buildCurrencyGrid(),
           const SizedBox(height: 32),
 
           // Recent Transactions
@@ -1267,6 +1257,7 @@ class _HomePageState extends State<HomePage> {
     final amountController = TextEditingController();
     String selectedColor = 'purple';
     String selectedCategory = 'Diğer';
+    String selectedIcon = 'stars_rounded';
 
     DesignSystem.showPremiumDialog(
       context: context,
@@ -1302,6 +1293,17 @@ class _HomePageState extends State<HomePage> {
                 decoration: InputDecoration(
                   labelText: 'Kategori',
                   prefixIcon: const Icon(Icons.category_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: selectedIcon,
+                items: _goalIconOptions.map((iconMap) => DropdownMenuItem(value: iconMap['key'] as String, child: Row(children: [Icon(iconMap['iconData'] as IconData, size: 20, color: DesignSystem.gray,), const SizedBox(width: 8), Text(iconMap['label'] as String)]))).toList(),
+                onChanged: (val) => setDialogState(() => selectedIcon = val!),
+                decoration: InputDecoration(
+                  labelText: 'İkon',
+                  prefixIcon: const Icon(Icons.star_outline),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                 ),
               ),
@@ -1361,261 +1363,406 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildGoalCard(Map<String, dynamic> goal) {
-    bool isCompleted = goal['is_completed'] == true || goal['is_completed'] == 1;
-    bool showDetails = _expandedGoals[goal['id']] ?? false;
-    Color goalCol = _colorMap[goal['color']] ?? Colors.purple;
-    double amount = (goal['target_amount'] as num).toDouble();
-    double currentProgress = _calculateCurrentProgressForGoal(goal['id'], amount);
-    Map<String, double> progressHistory = _getMonthlyProgressForGoal(goal['id'], amount);
-    double savedSoFar = progressHistory.values.isNotEmpty ? progressHistory.values.last : 0.0;
-    
-    final List<String> monthNames = [
-      'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
-    ];
-    String targetMonthKey = '${monthNames[selectedCalendarDate.month - 1]} ${selectedCalendarDate.year}';
+  Widget _buildGoalsTabbedSection() {
+    final activeGoals = goals.where((g) => g['is_completed'] != true && g['is_completed'] != 1).toList();
+    final completedGoals = goals.where((g) => g['is_completed'] == true || g['is_completed'] == 1).toList();
 
-    return SingleChildScrollView(
-      physics: showDetails ? const ClampingScrollPhysics() : const NeverScrollableScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _expandedGoals[goal['id']] = !showDetails;
-              });
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: DesignSystem.premiumCard(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildTabButton('Devam Eden (${activeGoals.length})', !_showCompletedGoals),
+            const SizedBox(width: 16),
+            _buildTabButton('Tamamlanan (${completedGoals.length})', _showCompletedGoals),
+          ],
+        ),
+        const SizedBox(height: 16),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: child,
+            );
+          },
+          child: _showCompletedGoals
+              ? _buildCompletedGoalsGrid(completedGoals)
+              : _buildOngoingGoalsGrid(activeGoals),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabButton(String text, bool isSelected) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _showCompletedGoals = text.startsWith('Tamamlanan');
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? DesignSystem.primaryIndigo : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? DesignSystem.primaryIndigo : DesignSystem.gray.withValues(alpha: 0.3)),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: isSelected ? Colors.white : DesignSystem.gray,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOngoingGoalsGrid(List<Map<String, dynamic>> activeGoals) {
+    if (activeGoals.isEmpty) {
+       return const Padding(
+         padding: EdgeInsets.symmetric(vertical: 24),
+         child: Center(child: Text('Aktif hedefiniz bulunmamaktadır', style: TextStyle(color: Colors.grey))),
+       );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = constraints.maxWidth > 600 ? 3 : 2;
+        if (activeGoals.length == 1) crossAxisCount = 1;
+
+        return GridView.builder(
+          key: const ValueKey('activeGrid'),
+          physics: const NeverScrollableScrollPhysics(),
+          shrinkWrap: true,
+          padding: EdgeInsets.zero,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: activeGoals.length == 1 ? 2.5 : 1.1,
+          ),
+          itemCount: activeGoals.length,
+          itemBuilder: (context, index) {
+            return _buildNewGoalCard(activeGoals[index]);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCompletedGoalsGrid(List<Map<String, dynamic>> completedGoals) {
+    if (completedGoals.isEmpty) {
+       return Padding(
+         key: const ValueKey('emptyCompleted'),
+         padding: const EdgeInsets.symmetric(vertical: 40),
+         child: Center(
+           child: Column(
+             children: [
+               const Icon(Icons.emoji_events, size: 64, color: Colors.amber),
+               const SizedBox(height: 16),
+               Text('Başarı Odası Boş', style: DesignSystem.heading(color: Colors.amber, size: 20)),
+               const SizedBox(height: 8),
+               Text('İlk hedefinize ulaşmak için tasarruf etmeye devam edin!', style: DesignSystem.body(color: DesignSystem.gray), textAlign: TextAlign.center),
+             ],
+           ),
+         ),
+       );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = constraints.maxWidth > 600 ? 3 : 2;
+        if (completedGoals.length == 1) crossAxisCount = 1;
+
+        return GridView.builder(
+          key: const ValueKey('completedGrid'),
+          physics: const NeverScrollableScrollPhysics(),
+          shrinkWrap: true,
+          padding: EdgeInsets.zero,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: completedGoals.length == 1 ? 2.5 : 1.1,
+          ),
+          itemCount: completedGoals.length,
+          itemBuilder: (context, index) {
+            return _buildNewGoalCard(completedGoals[index]);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildNewGoalCard(Map<String, dynamic> goal) {
+    bool isCompleted = goal['is_completed'] == true || goal['is_completed'] == 1;
+    Color goalCol = isCompleted ? Colors.amber : (_colorMap[goal['color']] ?? Colors.purple);
+    double amount = (goal['target_amount'] as num).toDouble();
+    double savedAmount = (goal['saved_amount'] as num?)?.toDouble() ?? 0.0;
+    
+    // Safety check for completion bounds
+    if (isCompleted) savedAmount = amount;
+    
+    double currentProgress = (savedAmount / amount).clamp(0.0, 1.0);
+    IconData icon = _getIconData(goal['icon'] ?? 'stars_rounded');
+    
+    return GestureDetector(
+      onTap: () => _showGoalModal(goal, goalCol, amount, savedAmount, currentProgress, isCompleted),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: isCompleted ? 
+          BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.amber, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.amber.withOpacity(0.2),
+                blurRadius: 15,
+                spreadRadius: 2,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ) : DesignSystem.premiumCard(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(isCompleted ? Icons.emoji_events : icon, color: isCompleted ? Colors.amber : goalCol, size: 24),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: goalCol.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                  child: Text(isCompleted ? '\u2705' : '${(currentProgress * 100).toStringAsFixed(0)}%', style: DesignSystem.body(color: goalCol, weight: FontWeight.w700, size: 12)),
+                )
+              ],
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: SizedBox(
+                width: 60,
+                height: 60,
+                child: CustomPaint(
+                  painter: _ProgressRingPainter(progress: currentProgress, color: goalCol),
+                  child: Center(
+                    child: Icon(icon, color: goalCol.withOpacity(0.5), size: 24),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(goal['title'], style: DesignSystem.subheading(size: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text('₺${amount.toStringAsFixed(0)}', style: DesignSystem.heading(size: 16, color: goalCol)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showGoalModal(Map<String, dynamic> goal, Color goalCol, double amount, double savedSoFar, double currentProgress, bool isCompleted) {
+    if (isCompleted) {
+        _confettiController.play();
+    }
+    
+    showGeneralDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      barrierDismissible: true,
+      barrierLabel: 'Close',
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, anim1, anim2) {
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Center(
+            child: Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                Container(
+                  margin: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 20)],
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                Icon(Icons.stars_rounded, color: goalCol, size: 18),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    goal['title'],
-                                    style: DesignSystem.subheading(color: DesignSystem.black, size: 16),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (isCompleted) ...[
-                                  const SizedBox(width: 6),
-                                  const Icon(Icons.check_circle, color: DesignSystem.secondaryGreen, size: 18),
-                                ],
-                              ],
+                            Expanded(
+                              child: Text(goal['title'], style: DesignSystem.heading(size: 22), maxLines: 2),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '₺${amount.toStringAsFixed(0)}',
-                              style: DesignSystem.heading(size: 20, color: goalCol),
-                            ),
+                            IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
                           ],
                         ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Icon(
-                            showDetails ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                            color: DesignSystem.gray,
-                            size: 22,
-                          ),
-                          if (!isCompleted) ...[
-                            const SizedBox(height: 8),
-                            GestureDetector(
-                              onTap: () => _showGoalCustomizeDialog(goal),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: DesignSystem.primaryIndigo.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
+                        if (isCompleted)
+                           Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.amber.withOpacity(0.3))),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.emoji_events, color: Colors.amber),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text('Hedef Tamamlandı! \u2705 ' + (goal['completed_at'] ?? ''), style: DesignSystem.subheading(color: Colors.amber, size: 14)),
                                 ),
-                                child: Text(
-                                  'Düzenle',
-                                  style: DesignSystem.body(color: DesignSystem.primaryIndigo, weight: FontWeight.w700, size: 11),
+                              ]
+                            ),
+                          ),
+                        const SizedBox(height: 24),
+                        Center(
+                          child: SizedBox(
+                            width: 120,
+                            height: 120,
+                            child: CustomPaint(
+                              painter: _ProgressRingPainter(progress: currentProgress, color: goalCol),
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(_getIconData(goal['icon'] ?? 'stars_rounded'), color: goalCol, size: 32),
+                                    const SizedBox(height: 4),
+                                    Text('${(currentProgress * 100).toStringAsFixed(0)}%', style: DesignSystem.heading(size: 20, color: goalCol)),
+                                  ],
                                 ),
                               ),
                             ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildStatBox('Hedef', '₺${amount.toStringAsFixed(0)}', goalCol),
+                            _buildStatBox('Biriktirilen', '₺${savedSoFar.toStringAsFixed(0)}', goalCol),
+                            _buildStatBox('Kalan', '₺${max(0, amount - savedSoFar).toStringAsFixed(0)}', goalCol),
                           ],
-                        ],
-                      ),
-                    ],
+                        ),
+                        const SizedBox(height: 24),
+                        Text('İlerleme Grafiği', style: DesignSystem.subheading(size: 16)),
+                        const SizedBox(height: 16),
+                        FutureBuilder<Map<String, dynamic>>(
+                          future: ApiService.getGoalHistory(goal['id'] as int),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const SizedBox(height: 150, child: Center(child: CircularProgressIndicator()));
+                            }
+                            if (snapshot.hasError) {
+                              return SizedBox(height: 150, child: Center(child: Text('Hata oluştu: ${snapshot.error}')));
+                            }
+                            
+                            final history = snapshot.data ?? {};
+                            if (history.isEmpty) {
+                              return const SizedBox(height: 150, child: Center(child: Text('Henüz veri yok.')));
+                            }
+                            
+                            return SizedBox(
+                              height: 150,
+                              child: LineChart(
+                                LineChartData(
+                                  gridData: const FlGridData(show: false),
+                                  titlesData: const FlTitlesData(show: false),
+                                  borderData: FlBorderData(show: false),
+                                  minX: 0,
+                                  maxX: max(1, history.length.toDouble() - 1),
+                                  minY: 0,
+                                  maxY: amount,
+                                  lineBarsData: [
+                                    LineChartBarData(
+                                      spots: history.values.toList().asMap().entries.map((e) => FlSpot(e.key.toDouble(), (e.value as num).toDouble())).toList(),
+                                      isCurved: true,
+                                      color: goalCol,
+                                      barWidth: 3,
+                                      isStrokeCapRound: true,
+                                      dotData: const FlDotData(show: false),
+                                      belowBarData: BarAreaData(
+                                        show: true,
+                                        gradient: LinearGradient(colors: [goalCol.withOpacity(0.3), goalCol.withOpacity(0.0)], begin: Alignment.topCenter, end: Alignment.bottomCenter),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+                        ),
+                        const SizedBox(height: 24),
+                        // Action Buttons Logic
+                        if (!isCompleted && currentProgress >= 1.0)
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {   
+                                Navigator.pop(context); 
+                                _purchaseGoalAction(goal); 
+                                _confettiController.play();
+                              },
+                              icon: const Icon(Icons.shopping_cart_checkout, size: 18),
+                              label: const Text('Satın Al / Tamamla'),
+                              style: ElevatedButton.styleFrom(backgroundColor: DesignSystem.secondaryGreen, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                            ),
+                          ),
+                        if (!isCompleted && savings.isNotEmpty && currentProgress < 1.0)
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () { Navigator.pop(context); _showUseSavingsDialog(goal); },
+                              icon: Icon(Icons.account_balance_wallet_outlined, size: 16, color: goalCol),
+                              label: Text('Varlıktan Kullan', style: TextStyle(color: goalCol, fontWeight: FontWeight.w600)),
+                              style: OutlinedButton.styleFrom(side: BorderSide(color: goalCol.withOpacity(0.5)), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                            ),
+                          ),
+                        if (!isCompleted)
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextButton(onPressed: () { Navigator.pop(context); _showGoalCustomizeDialog(goal); }, child: Text('Düzenle', style: DesignSystem.body(color: DesignSystem.primaryIndigo)))),
+                              Expanded(
+                                child: TextButton(onPressed: () { Navigator.pop(context); _deleteGoalConfirm(goal); }, child: Text('Sil', style: DesignSystem.body(color: Colors.red)))),
+                            ],
+                          ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                ),
+                if (isCompleted)
+                  ConfettiWidget(
+                    confettiController: _confettiController,
+                    blastDirectionality: BlastDirectionality.explosive,
+                    shouldLoop: false,
+                    numberOfParticles: 30,
+                    gravity: 0.2,
+                    colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple],
+                  ),
+              ],
             ),
           ),
-          if (showDetails && isCompleted) ...[
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: DesignSystem.secondaryGreen.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: DesignSystem.secondaryGreen.withOpacity(0.3)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.check_circle, color: DesignSystem.secondaryGreen, size: 22),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Bu hedef tamamlandı! \u2705',
-                    style: DesignSystem.subheading(color: DesignSystem.secondaryGreen, size: 14),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          if (showDetails && !isCompleted) ...[
-            const SizedBox(height: 6),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: goalCol.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: goalCol.withValues(alpha: 0.3), width: 1.5),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                       Text(
-                        'İlerleme',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: goalCol,
-                        ),
-                      ),
-                      Text(
-                        '${(currentProgress * 100).toStringAsFixed(1)}%',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: goalCol,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => _deleteGoalConfirm(goal),
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        tooltip: 'Hedefi Sil',
-                      ),
-                    ]
-                   ),
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: LinearProgressIndicator(
-                      value: currentProgress,
-                      minHeight: 8,
-                      backgroundColor: goalCol.withValues(alpha: 0.15),
-                      valueColor: AlwaysStoppedAnimation<Color>(goalCol),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  
-                  // Purchase Button Logic
-                  if (currentProgress >= 1.0)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _purchaseGoalAction(goal),
-                        icon: const Icon(Icons.shopping_cart_checkout, size: 18),
-                        label: const Text('Satın Al / Hedefi Tamamla'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: DesignSystem.secondaryGreen,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  // Use Savings Button
-                  if (savings.isNotEmpty)
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showUseSavingsDialog(goal),
-                        icon: Icon(Icons.account_balance_wallet_outlined, size: 16, color: goalCol),
-                        label: Text('Varlıktan Kullan', style: TextStyle(color: goalCol, fontWeight: FontWeight.w600, fontSize: 13)),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: goalCol.withOpacity(0.5)),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ),
-                  
-                  const SizedBox(height: 8),
-                  Text(
-                    'Şimdiye kadar ₺${savedSoFar.toStringAsFixed(0)} biriktirdiniz.',
-                    style: DesignSystem.body(color: goalCol, size: 12, weight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Aylık İlerleme',
-                    style: DesignSystem.subheading(color: goalCol, size: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  ...progressHistory.entries.toList().reversed.take(5).toList().reversed.map((entry) {
-                    int originalIndex = progressHistory.keys.toList().indexOf(entry.key);
-                    String month = entry.key;
-                    double currentValue = entry.value;
-                    double previousValue = originalIndex > 0 ? progressHistory.values.toList()[originalIndex - 1] : 0;
-                    double monthlyAddition = currentValue - previousValue;
-                    double percentage = (currentValue / amount) * 100;
-                    double monthlyPercentage = (monthlyAddition / amount) * 100;
+        );
+      },
+      transitionBuilder: (context, anim1, anim2, child) {
+        return Transform.scale(
+          scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack).value,
+          child: Opacity(opacity: anim1.value, child: child),
+        );
+      },
+    );
+  }
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: _buildGoalProgressItem(
-                        month,
-                        monthlyAddition,
-                        currentValue,
-                        monthlyPercentage,
-                        percentage,
-                        monthlyAddition > 0,
-                        goalCol,
-                        amount,
-                      ),
-                    );
-                  }),
-                  if (progressHistory.length > 5)
-                    Center(
-                      child: TextButton(
-                        onPressed: () => _showAllProgressHistory(goal, progressHistory),
-                        child: Text(
-                          'Tümünü Gör (${progressHistory.length})',
-                          style: DesignSystem.body(color: goalCol, weight: FontWeight.w700, size: 14),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ]
-      )
+  Widget _buildStatBox(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(label, style: DesignSystem.body(size: 12)),
+        const SizedBox(height: 4),
+        Text(value, style: DesignSystem.subheading(size: 14, color: color)),
+      ],
     );
   }
 
@@ -1819,89 +1966,176 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildExchangeRateCard({
-    required String title,
-    required String rate,
-    required String change,
-    required bool isPositive,
-  }) {
+  Widget _buildCurrencyGrid() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = constraints.maxWidth > 500 ? 3 : 2;
+        return GridView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          shrinkWrap: true,
+          padding: EdgeInsets.zero,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.6,
+          ),
+          itemCount: _selectedCurrencies.length,
+          itemBuilder: (context, index) {
+            String key = _selectedCurrencies[index];
+            return _buildUnifiedCurrencyCard(key);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildUnifiedCurrencyCard(String key) {
+    final meta = _currencyRegistry.firstWhere((c) => c['key'] == key, orElse: () => _currencyRegistry.first);
+    final isCryptoOrCommodity = meta['key'] == 'Gram Altın' || meta['key'] == 'Gümüş' || meta['key'] == 'BTC/TL' || meta['key'] == 'ETH/TL';
+    
+    double rate = liveMarketRates[key] ?? 0.0;
+    String displayRate;
+    if (isCryptoOrCommodity) {
+      displayRate = '₺${rate > 1000 ? rate.toStringAsFixed(0) : rate.toStringAsFixed(2)}';
+    } else {
+      displayRate = rate.toStringAsFixed(2);
+    }
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: DesignSystem.premiumCard(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: DesignSystem.subheading(size: 14, color: DesignSystem.gray)),
+              Expanded(
+                child: Text(meta['label'], style: DesignSystem.subheading(size: 13, color: DesignSystem.gray), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
-                  color: (isPositive ? DesignSystem.secondaryGreen : DesignSystem.accentCoral).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: DesignSystem.secondaryGreen.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  isPositive ? Icons.trending_up : Icons.trending_down,
-                  size: 14,
-                  color: isPositive ? DesignSystem.secondaryGreen : DesignSystem.accentCoral,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(width: 6, height: 6, decoration: const BoxDecoration(color: DesignSystem.secondaryGreen, shape: BoxShape.circle)),
+                    const SizedBox(width: 4),
+                    Text('Canlı', style: DesignSystem.body(color: DesignSystem.secondaryGreen, weight: FontWeight.w700, size: 10)),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(rate, style: DesignSystem.heading(size: 20)),
-          const SizedBox(height: 4),
-          Text(
-            change,
-            style: DesignSystem.body(
-              size: 12,
-              color: isPositive ? DesignSystem.secondaryGreen : DesignSystem.accentCoral,
-              weight: FontWeight.w700,
-            ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: meta['color'].withOpacity(0.1), shape: BoxShape.circle),
+                child: Icon(meta['iconData'], color: meta['color'], size: 16),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(displayRate, style: DesignSystem.heading(size: 18), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCommodityCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-    required bool isPositive,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: DesignSystem.premiumCard(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 18),
+  void _showCurrencySelectionDialog() {
+    List<String> tempSelection = List.from(_selectedCurrencies);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.75,
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
               ),
-              Icon(
-                isPositive ? Icons.trending_up : Icons.trending_down,
-                size: 16,
-                color: isPositive ? DesignSystem.secondaryGreen : DesignSystem.accentCoral,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(child: Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)))),
+                  const SizedBox(height: 24),
+                  Text('Döviz Kurlarını Özelleştir', style: DesignSystem.heading(size: 22)),
+                  const SizedBox(height: 8),
+                  Text('Ana ekranda görmek istediğiniz kurları seçin. (En az 1, en fazla 6)', style: DesignSystem.body(size: 14)),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: _currencyRegistry.length,
+                      itemBuilder: (context, index) {
+                        final meta = _currencyRegistry[index];
+                        final isSelected = tempSelection.contains(meta['key']);
+                        
+                        return CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Row(
+                            children: [
+                              Icon(meta['iconData'], color: meta['color'], size: 20),
+                              const SizedBox(width: 12),
+                              Text(meta['label'], style: DesignSystem.subheading(size: 16)),
+                            ],
+                          ),
+                          activeColor: DesignSystem.primaryIndigo,
+                          value: isSelected,
+                          onChanged: (bool? val) {
+                            setModalState(() {
+                              if (val == true) {
+                                if (tempSelection.length < 6) {
+                                  tempSelection.add(meta['key']);
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('En fazla 6 kur seçebilirsiniz.')));
+                                }
+                              } else {
+                                if (tempSelection.length > 1) {
+                                  tempSelection.remove(meta['key']);
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('En az 1 kur seçmelisiniz.')));
+                                }
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _selectedCurrencies = List.from(tempSelection);
+                        });
+                        _saveSelectedCurrencies();
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: DesignSystem.primaryIndigo, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                      child: const Text('Kaydet ve Uygula', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(title, style: DesignSystem.body(size: 12, color: DesignSystem.gray)),
-          const SizedBox(height: 4),
-          Text(value, style: DesignSystem.heading(size: 18)),
-        ],
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -2055,7 +2289,8 @@ class _HomePageState extends State<HomePage> {
         initialName: goal['title'],
         initialAmount: (goal['target_amount'] as num).toDouble(),
         initialColor: _colorMap[goal['color']] ?? Colors.purple,
-        onSave: (newName, newAmount, newColor) async {
+        initialIcon: goal['icon'] ?? 'stars_rounded',
+        onSave: (newName, newAmount, newColor, newIcon) async {
           String colorString = 'purple';
           _colorMap.forEach((key, value) {
             if (value.value == newColor.value) colorString = key;
@@ -2066,6 +2301,7 @@ class _HomePageState extends State<HomePage> {
               'title': newName,
               'target_amount': newAmount,
               'color': colorString,
+              'icon': newIcon,
             });
             await _loadData();
           } catch (e) {
@@ -2116,12 +2352,14 @@ class _GoalCustomizeDialog extends StatefulWidget {
   final String initialName;
   final double initialAmount;
   final Color initialColor;
-  final Function(String, double, Color) onSave;
+  final String initialIcon;
+  final Function(String, double, Color, String) onSave;
 
   const _GoalCustomizeDialog({
     required this.initialName,
     required this.initialAmount,
     required this.initialColor,
+    required this.initialIcon,
     required this.onSave,
   });
 
@@ -2133,6 +2371,16 @@ class _GoalCustomizeDialogState extends State<_GoalCustomizeDialog> {
   late TextEditingController nameController;
   late TextEditingController amountController;
   late Color selectedColor;
+  late String selectedIcon;
+
+  final List<Map<String, dynamic>> _goalIconOptions = [
+    {'label': 'Genel', 'iconData': Icons.stars_rounded, 'key': 'stars_rounded'},
+    {'label': 'Ev', 'iconData': Icons.home_rounded, 'key': 'home_rounded'},
+    {'label': 'Araç', 'iconData': Icons.directions_car_rounded, 'key': 'directions_car_rounded'},
+    {'label': 'Eğitim', 'iconData': Icons.school_rounded, 'key': 'school_rounded'},
+    {'label': 'Tatil', 'iconData': Icons.flight_takeoff_rounded, 'key': 'flight_takeoff_rounded'},
+    {'label': 'Teknoloji', 'iconData': Icons.computer_rounded, 'key': 'computer_rounded'},
+  ];
 
   @override
   void initState() {
@@ -2142,6 +2390,7 @@ class _GoalCustomizeDialogState extends State<_GoalCustomizeDialog> {
       text: widget.initialAmount.toStringAsFixed(0),
     );
     selectedColor = widget.initialColor;
+    selectedIcon = widget.initialIcon;
   }
 
   @override
@@ -2179,6 +2428,19 @@ class _GoalCustomizeDialogState extends State<_GoalCustomizeDialog> {
           decoration: InputDecoration(
             hintText: 'Tutar',
             prefixIcon: const Icon(Icons.money, color: DesignSystem.primaryIndigo),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text('İkon Seç', style: DesignSystem.body(size: 14, color: DesignSystem.gray, weight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: selectedIcon,
+          items: _goalIconOptions.map((iconMap) => DropdownMenuItem(value: iconMap['key'] as String, child: Row(children: [Icon(iconMap['iconData'] as IconData, size: 20, color: DesignSystem.gray), const SizedBox(width: 8), Text(iconMap['label'] as String)]))).toList(),
+          onChanged: (val) => setState(() => selectedIcon = val!),
+          decoration: InputDecoration(
+            hintText: 'İkon',
+            prefixIcon: const Icon(Icons.star_outline),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
           ),
         ),
@@ -2227,7 +2489,7 @@ class _GoalCustomizeDialogState extends State<_GoalCustomizeDialog> {
                 final newGoal = double.tryParse(amountController.text);
                 final newName = nameController.text.trim();
                 if (newGoal != null && newGoal > 0 && newName.isNotEmpty) {
-                  widget.onSave(newName, newGoal, selectedColor);
+                  widget.onSave(newName, newGoal, selectedColor, selectedIcon);
                   Navigator.pop(context);
                 }
               },
@@ -2244,4 +2506,34 @@ class _GoalCustomizeDialogState extends State<_GoalCustomizeDialog> {
       ],
     );
   }
+}
+
+class _ProgressRingPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+  _ProgressRingPainter({required this.progress, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = min(size.width / 2, size.height / 2);
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    final bgPaint = Paint()
+      ..color = color.withOpacity(0.1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6;
+      
+    final fgPaint = Paint()
+      ..shader = SweepGradient(colors: [color.withOpacity(0.4), color], startAngle: -pi/2, endAngle: 3*pi/2).createShader(rect)
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 6;
+
+    canvas.drawCircle(center, radius, bgPaint);
+    canvas.drawArc(rect, -pi / 2, 2 * pi * progress.clamp(0.0, 1.0), false, fgPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ProgressRingPainter oldDelegate) => oldDelegate.progress != progress || oldDelegate.color != color;
 }

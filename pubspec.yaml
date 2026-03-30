@@ -50,6 +50,9 @@ dependencies:
   # Modern fonts
   google_fonts: ^6.2.1
 
+  # Lightweight charting for goal visualization
+  fl_chart: ^0.70.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

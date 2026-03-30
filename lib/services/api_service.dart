@@ -285,6 +285,10 @@ class ApiService {
     return await getList('/api/goals');
   }
 
+  static Future<Map<String, dynamic>> getGoalHistory(int id) async {
+    return await get('/api/goals/$id/history');
+  }
+
   static Future<Map<String, dynamic>> createGoal(
     Map<String, dynamic> goalData,
   ) async {

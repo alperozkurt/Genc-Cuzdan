@@ -36,6 +36,7 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> expenseTransactions = [];
   List<Map<String, dynamic>> activities = [];
   List<Map<String, dynamic>> savings = [];
+  List<Map<String, dynamic>> savedExpenses = [];
 
   // Goal tracking state
   List<Map<String, dynamic>> goals = [];
@@ -141,9 +142,11 @@ class _HomePageState extends State<HomePage> {
       try {
         final goalsData = await ApiService.getGoals();
         final savingsData = await ApiService.getSavings();
+        final savedExpData = await ApiService.getSavedExpenses();
         setState(() {
           goals = List<Map<String, dynamic>>.from(goalsData);
           savings = List<Map<String, dynamic>>.from(savingsData);
+          savedExpenses = List<Map<String, dynamic>>.from(savedExpData);
           if (_currentGoalIndex >= goals.length && goals.isNotEmpty) {
             _currentGoalIndex = goals.length - 1;
           } else if (goals.isEmpty) {
@@ -524,7 +527,16 @@ class _HomePageState extends State<HomePage> {
                   onTap: _showAddTransactionDialog,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildActionCard(
+                  title: 'Hızlı Gider',
+                  icon: Icons.flash_on_rounded,
+                  color: DesignSystem.warningOrange,
+                  onTap: _showQuickAddDialog,
+                ),
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: _buildActionCard(
                   title: 'Yeni Hedef',
@@ -974,6 +986,277 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
           child: const Text('Kaydet'),
+        ),
+      ],
+    );
+  }
+
+  void _showQuickAddDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.65),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Hızlı Gider Ekle', style: DesignSystem.subheading(size: 18, color: DesignSystem.black)),
+                        IconButton(
+                          icon: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: DesignSystem.warningOrange.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.add, color: DesignSystem.warningOrange, size: 20),
+                          ),
+                          onPressed: () {
+                            _showCreateSavedExpenseDialog(setSheetState);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (savedExpenses.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          Icon(Icons.flash_off_rounded, size: 48, color: Colors.grey[300]),
+                          const SizedBox(height: 12),
+                          Text('Henüz kayıtlı gider yok.',
+                            style: DesignSystem.body(color: DesignSystem.gray),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text('Sık kullandığınız giderleri ekleyerek tek dokunuşla harcama kaydedin.',
+                            style: DesignSystem.body(color: DesignSystem.gray, size: 12),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: savedExpenses.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (_, i) {
+                          final exp = savedExpenses[i];
+                          return Dismissible(
+                            key: Key('saved_exp_${exp['id']}'),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              decoration: BoxDecoration(
+                                color: DesignSystem.accentCoral.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.delete_outline, color: DesignSystem.accentCoral),
+                            ),
+                            onDismissed: (_) async {
+                              try {
+                                await ApiService.deleteSavedExpense(exp['id']);
+                                final refreshed = await ApiService.getSavedExpenses();
+                                setState(() => savedExpenses = List<Map<String, dynamic>>.from(refreshed));
+                                setSheetState(() {});
+                              } catch (e) {
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                              }
+                            },
+                            child: ListTile(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              tileColor: DesignSystem.warningOrange.withOpacity(0.05),
+                              leading: CircleAvatar(
+                                backgroundColor: DesignSystem.warningOrange.withOpacity(0.15),
+                                child: const Icon(Icons.receipt_long_rounded, color: DesignSystem.warningOrange, size: 20),
+                              ),
+                              title: Text(exp['label'] ?? '', style: DesignSystem.subheading(size: 14, color: DesignSystem.black)),
+                              subtitle: Text('${exp['category'] ?? 'Genel'} • ₺${(exp['amount'] as num).toStringAsFixed(0)}',
+                                style: DesignSystem.body(size: 12, color: DesignSystem.gray),
+                              ),
+                              trailing: const Icon(Icons.chevron_right, size: 18, color: DesignSystem.gray),
+                              onTap: () {
+                                Navigator.pop(ctx);
+                                _showApplySavedExpenseDialog(exp);
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showCreateSavedExpenseDialog(StateSetter? parentSetState) {
+    final labelController = TextEditingController();
+    final amountController = TextEditingController();
+    String selectedCategory = 'Diğer';
+
+    DesignSystem.showPremiumDialog(
+      context: context,
+      title: 'Yeni Kayıtlı Gider',
+      content: StatefulBuilder(
+        builder: (context, setDialogState) => SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: labelController,
+                decoration: InputDecoration(
+                  labelText: 'Gider Adı (örn: Otobüs)',
+                  prefixIcon: const Icon(Icons.label_outline),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Varsayılan Miktar (₺)',
+                  prefixIcon: const Icon(Icons.monetization_on_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: selectedCategory,
+                items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                onChanged: (val) => setDialogState(() => selectedCategory = val!),
+                decoration: InputDecoration(
+                  labelText: 'Kategori',
+                  prefixIcon: const Icon(Icons.category_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+        ElevatedButton(
+          onPressed: () async {
+            final amount = double.tryParse(amountController.text);
+            if (labelController.text.isNotEmpty && amount != null && amount > 0) {
+              Navigator.pop(context);
+              try {
+                await ApiService.createSavedExpense(
+                  label: labelController.text.trim(),
+                  amount: amount,
+                  category: selectedCategory,
+                );
+                final refreshed = await ApiService.getSavedExpenses();
+                setState(() => savedExpenses = List<Map<String, dynamic>>.from(refreshed));
+                parentSetState?.call(() {});
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+              }
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: DesignSystem.warningOrange,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: const Text('Kaydet'),
+        ),
+      ],
+    );
+  }
+
+  void _showApplySavedExpenseDialog(Map<String, dynamic> expense) {
+    final amountController = TextEditingController(
+      text: (expense['amount'] as num).toStringAsFixed(0),
+    );
+
+    DesignSystem.showPremiumDialog(
+      context: context,
+      title: expense['label'] ?? 'Gider Ekle',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Kategori: ${expense['category'] ?? 'Genel'}',
+            style: DesignSystem.body(color: DesignSystem.gray, size: 13),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: amountController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'Miktar (₺)',
+              prefixIcon: const Icon(Icons.monetization_on_outlined),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Miktarı değiştirebilir veya varsayılan değerle ekleyebilirsiniz.',
+            style: DesignSystem.body(color: DesignSystem.gray, size: 11),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+        ElevatedButton(
+          onPressed: () async {
+            final amount = double.tryParse(amountController.text);
+            if (amount != null && amount > 0) {
+              Navigator.pop(context);
+              try {
+                final defaultAmount = (expense['amount'] as num).toDouble();
+                await ApiService.applySavedExpense(
+                  expense['id'],
+                  overrideAmount: amount != defaultAmount ? amount : null,
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${expense['label']} eklendi: ₺${amount.toStringAsFixed(0)}'),
+                      backgroundColor: DesignSystem.warningOrange,
+                    ),
+                  );
+                }
+                await _loadData();
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
+              }
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: DesignSystem.warningOrange,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+          child: const Text('Gider Olarak Ekle'),
         ),
       ],
     );

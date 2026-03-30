@@ -373,27 +373,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                       ),
                       
                       const SizedBox(height: 48),
-                      // Demo info for testing
-                      if (_isLoginMode)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: DesignSystem.primaryIndigo.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: DesignSystem.primaryIndigo.withOpacity(0.1)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.info_outline, size: 18, color: DesignSystem.primaryIndigo),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Demo: demo@example.com / demo123',
-                              style: TextStyle(color: DesignSystem.primaryIndigo.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),

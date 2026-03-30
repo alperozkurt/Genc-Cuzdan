@@ -311,5 +311,35 @@ class ApiService {
   static Future<Map<String, dynamic>> fundGoalFromSaving(int goalId, int savingId) async {
     return await post('/api/goals/$goalId/fund', {'saving_id': savingId});
   }
+
+  // ── Saved Expenses (Quick-Add Templates) ──────────────────────────────────
+
+  static Future<List<dynamic>> getSavedExpenses() async {
+    return await getList('/api/saved-expenses');
+  }
+
+  static Future<Map<String, dynamic>> createSavedExpense({
+    required String label,
+    required double amount,
+    String category = 'Genel',
+  }) async {
+    return await post('/api/saved-expenses', {
+      'label': label,
+      'amount': amount,
+      'category': category,
+    });
+  }
+
+  static Future<void> deleteSavedExpense(int id) async {
+    return await delete('/api/saved-expenses/$id');
+  }
+
+  static Future<Map<String, dynamic>> applySavedExpense(int id, {double? overrideAmount}) async {
+    final data = <String, dynamic>{};
+    if (overrideAmount != null) {
+      data['override_amount'] = overrideAmount;
+    }
+    return await post('/api/saved-expenses/$id/apply', data);
+  }
 }
 

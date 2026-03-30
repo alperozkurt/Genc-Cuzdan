@@ -44,6 +44,12 @@ dependencies:
   # Confetti animation
   confetti: ^0.7.0
 
+  # Internationalization for date formatting
+  intl: ^0.19.0
+
+  # Modern fonts
+  google_fonts: ^6.2.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

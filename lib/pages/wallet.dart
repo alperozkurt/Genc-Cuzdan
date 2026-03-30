@@ -1,80 +1,11 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+import '../services/market_service.dart';
+import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../theme/design_system.dart';
 
-// --- DESIGN SYSTEM CONSTANTS (Mapped from financial_design_system.json) ---
-
-class AppColors {
-  // Primary
-  static const Color teal = Color(0xFF17A2A2);
-  static const Color darkTeal = Color(0xFF0D8B8F);
-  static const Color lightTeal = Color(0xFF4ECDC1);
-
-  // Secondary
-  static const Color softGreen = Color(0xFF2ECC71);
-  static const Color darkGreen = Color(0xFF27AE60);
-
-  // Accent
-  static const Color coral = Color(0xFFFF6B6B);
-  static const Color orange = Color(0xFFF39C12);
-  static const Color purple = Color(0xFF9B59B6);
-
-  // Neutral
-  static const Color background = Color(
-    0xFFF5F5F5,
-  ); // Using lightGray for better contrast
-  static const Color white = Color(0xFFFFFFFF);
-  static const Color darkGray = Color(0xFF666666);
-  static const Color black = Color(0xFF1A1A1A);
-  static const Color mediumGray = Color(0xFFCCCCCC);
-}
-
-class AppStyles {
-  // Typography
-  static const TextStyle heading1 = TextStyle(
-    fontSize: 28,
-    fontWeight: FontWeight.w700,
-    color: AppColors.black,
-    height: 1.2,
-    fontFamily: 'Inter', // Assumed font family
-  );
-
-  static const TextStyle heading2 = TextStyle(
-    fontSize: 24,
-    fontWeight: FontWeight.w600,
-    color: AppColors.black,
-    height: 1.2,
-  );
-
-  static const TextStyle subheading = TextStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.w600,
-    color: AppColors.darkGray,
-    height: 1.3,
-  );
-
-  static const TextStyle body = TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w500,
-    color: AppColors.darkGray,
-    height: 1.5,
-  );
-
-  // Shadows
-  static const BoxShadow cardShadow = BoxShadow(
-    color: Color.fromRGBO(0, 0, 0, 0.12),
-    blurRadius: 12,
-    offset: Offset(0, 4),
-  );
-
-  static const BoxShadow subtleShadow = BoxShadow(
-    color: Color.fromRGBO(0, 0, 0, 0.08),
-    blurRadius: 4,
-    offset: Offset(0, 2),
-  );
-
-  // Radii
-  static final BorderRadius cardRadius = BorderRadius.circular(16);
-  static final BorderRadius buttonRadius = BorderRadius.circular(12);
-}
+// WalletPage now uses DesignSystem and unified theme.
 
 // --- MAIN WIDGET ---
 
@@ -86,6 +17,7 @@ class WalletPage extends StatefulWidget {
   final String? investmentProfile;
   final List<Map<String, dynamic>> goals;
   final List<Map<String, dynamic>> activities;
+  final List<Map<String, dynamic>> savings;
   final Function(String) onStartInvestmentTest;
   final Function() onRetakeInvestmentTest;
 
@@ -97,6 +29,7 @@ class WalletPage extends StatefulWidget {
     required this.investmentProfile,
     required this.goals,
     required this.activities,
+    required this.savings,
     required this.onStartInvestmentTest,
     required this.onRetakeInvestmentTest,
     super.key,
@@ -107,141 +40,262 @@ class WalletPage extends StatefulWidget {
 }
 
 class _WalletPageState extends State<WalletPage> {
+  List<dynamic> _savings = [];
+  Map<String, double> _marketData = {};
+  bool _isLoading = true;
+  Map<String, dynamic>? _summary;
+  double _totalBalance = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final summaryData = await ApiService.getFinancialSummary();
+      final savingsData = await ApiService.getSavings();
+      final marketData = await MarketService.getMarketData();
+      
+      setState(() {
+        _summary = summaryData;
+        _savings = savingsData;
+        _marketData = marketData;
+        _totalBalance = _calculateTotalBalance();
+        _isLoading = false;
+      });
+    } catch (e) {
+      // Handle error
+      print('Error loading data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  double _convertResultToTry(double amount, String currency) {
+    if (currency == 'TRY') return amount;
+    if (_marketData.isEmpty) return amount; // Or fallback
+
+    switch (currency) {
+      case 'USD':
+        return amount * (_marketData['USD/TL'] ?? 1.0);
+      case 'EUR':
+        return amount * (_marketData['EUR/TL'] ?? 1.0);
+      case 'GOLD':
+        return amount * (_marketData['Gram Altın'] ?? 1.0);
+      default:
+        return amount;
+    }
+  }
+
+  double _calculateTotalBalance() {
+    double total = 0;
+    for (var item in _savings) {
+      double amount = (item['amount'] as num).toDouble();
+      String currency = item['currency'] ?? 'TRY';
+      total += _convertResultToTry(amount, currency);
+    }
+    return total;
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Logic: Calculate Total Balance (Savings represents the net balance)
-    final double totalBalance = widget.monthlySavings;
-
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: DesignSystem.background,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddSavingDialog,
+        backgroundColor: DesignSystem.primaryIndigo,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // HEADER SECTION: Avatar + Greeting + Balance (Component Pattern)
-              _buildHeaderSection(totalBalance),
+        child: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // HEADER SECTION: Avatar + Greeting + Balance (Component Pattern)
+                    _buildOverviewSection(),
 
-              const SizedBox(height: 24),
+                    const SizedBox(height: 32),
 
-              // STATS AREA (Refactored to Card Grid)
-              const Text('Finansal Özet', style: AppStyles.subheading),
-              const SizedBox(height: 16),
-              _buildStatsGrid(),
+                    Text('Varlıklarım', style: DesignSystem.subheading()),
+                    const SizedBox(height: 16),
+                    _buildSavingsList(),
 
-              const SizedBox(height: 32),
+                    const SizedBox(height: 32),
 
-              const Text('Hedefler Özeti', style: AppStyles.subheading),
-              const SizedBox(height: 16),
-              _buildGoalsSummaryCard(),
+                    Text('Hedefler Özeti', style: DesignSystem.subheading()),
+                    const SizedBox(height: 16),
+                    _buildGoalsSummaryCard(),
 
-              const SizedBox(height: 32),
+                    const SizedBox(height: 32),
 
-              // INVESTMENT SECTION
-              const Text('Yatırım Stratejisi', style: AppStyles.subheading),
-              const SizedBox(height: 16),
+                    // INVESTMENT SECTION
+                    Text('Yatırım Stratejisi', style: DesignSystem.subheading()),
+                    const SizedBox(height: 16),
 
-              if (widget.investmentProfile == null)
-                _buildEmptyStateCard()
-              else
-                _buildInvestorProfileSection(),
+                    if (widget.investmentProfile == null)
+                      _buildEmptyStateCard()
+                    else
+                      _buildInvestorProfileSection(),
 
-              const SizedBox(height: 80), // Bottom spacing
-            ],
-          ),
-        ),
+                    const SizedBox(height: 80), // Bottom spacing
+                  ],
+                ),
+              ),
+            ),
       ),
     );
   }
 
-  Widget _buildHeaderSection(double balance) {
+  Widget _buildOverviewSection() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Balance Card: Gradient Style (Green to Teal)
+        // Premium Asset Section
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [AppColors.softGreen, AppColors.teal],
+              colors: [DesignSystem.primaryIndigo, DesignSystem.darkIndigo],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: AppStyles.cardRadius,
-            boxShadow: [AppStyles.cardShadow],
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Toplam Varlıklar',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+              Text(
+                'TOPLAM VARLIKLAR',
+                style: GoogleFonts.manrope(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.5,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
-                '₺${balance.toStringAsFixed(2)}',
-                style: const TextStyle(
+                '${NumberFormat.currency(locale: 'tr_TR', symbol: '₺').format(_totalBalance)}',
+                style: GoogleFonts.outfit(
                   color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                 ),
               ),
             ],
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildStatsGrid() {
-    return Column(
-      children: [
-        // Income & Expense Row
+        const SizedBox(height: 24),
+        
+        // Tighter Financial Summary Section
         Row(
           children: [
             Expanded(
-              child: _buildTransactionCard(
+              child: _buildSummaryCard(
                 title: 'Gelir',
-                amount: widget.monthlyIncome,
-                icon: Icons.arrow_upward_rounded,
-                iconColor: AppColors.softGreen,
-                bgColor: AppColors.white,
+                amount: _summary?['monthly_income'] ?? 0,
+                icon: Icons.south_west_rounded,
+                color: const Color(0xFF2ECC71),
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _buildTransactionCard(
+              child: _buildSummaryCard(
                 title: 'Gider',
-                amount: widget.monthlyExpense,
-                icon: Icons.arrow_downward_rounded,
-                iconColor: AppColors.coral, // Using Coral for negative/expense
-                bgColor: AppColors.white,
+                amount: _summary?['monthly_expense'] ?? 0,
+                icon: Icons.north_east_rounded,
+                color: const Color(0xFFFF6B6B),
               ),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        // Savings Row (Full width)
-        _buildTransactionCard(
-          title: 'Tasarruf (Aylık)',
-          amount: widget.monthlySavings,
+        _buildSummaryCard(
+          title: 'Aylık Birikim',
+          amount: _summary?['monthly_savings'] ?? 0,
           icon: Icons.savings_outlined,
-          iconColor: AppColors.orange,
-          bgColor: AppColors.white,
-          isHorizontal: true,
+          color: DesignSystem.primaryIndigo,
+          isFullWidth: true,
         ),
       ],
+    );
+  }
+
+  Widget _buildSummaryCard({
+    required String title,
+    required double amount,
+    required IconData icon,
+    required Color color,
+    bool isFullWidth = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[600],
+                ),
+              ),
+              Text(
+                '₺${NumberFormat('#,##0', 'tr_TR').format(amount)}',
+                style: GoogleFonts.outfit(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF2D3436),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -264,24 +318,24 @@ class _WalletPageState extends State<WalletPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: AppStyles.cardRadius,
-        boxShadow: [AppStyles.cardShadow],
-        border: Border.all(color: AppColors.purple.withValues(alpha: 0.2)),
+        color: DesignSystem.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: DesignSystem.premiumCard().boxShadow!,
+        border: Border.all(color: DesignSystem.accentCoral.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              _buildIconContainer(Icons.track_changes, AppColors.purple),
+              _buildIconContainer(Icons.track_changes, DesignSystem.accentCoral),
               const SizedBox(width: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Toplanan Hedef Tasarrufu', style: TextStyle(color: AppColors.darkGray, fontSize: 13)),
+                  const Text('Toplanan Hedef Tasarrufu', style: TextStyle(color: DesignSystem.gray, fontSize: 13)),
                   const SizedBox(height: 4),
-                  Text('₺${totalGoalSavings.toStringAsFixed(0)}', style: AppStyles.heading2),
+                  Text('₺${totalGoalSavings.toStringAsFixed(0)}', style: DesignSystem.heading(size: 24)),
                 ],
               ),
             ]
@@ -294,14 +348,14 @@ class _WalletPageState extends State<WalletPage> {
              children: [
                Column(
                  children: [
-                   Text(activeGoals.toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: AppColors.teal)),
-                   const Text('Aktif Hedefler', style: TextStyle(color: AppColors.darkGray, fontSize: 13)),
+                   Text(activeGoals.toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: DesignSystem.primaryIndigo)),
+                   const Text('Aktif Hedefler', style: TextStyle(color: DesignSystem.gray, fontSize: 13)),
                  ],
                ),
                Column(
                  children: [
-                   Text(completedGoals.toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: AppColors.softGreen)),
-                   const Text('Tamamlananlar', style: TextStyle(color: AppColors.darkGray, fontSize: 13)),
+                   Text(completedGoals.toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: DesignSystem.secondaryGreen)),
+                   const Text('Tamamlananlar', style: TextStyle(color: DesignSystem.gray, fontSize: 13)),
                  ],
                ),
              ]
@@ -323,8 +377,8 @@ class _WalletPageState extends State<WalletPage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: AppStyles.cardRadius,
-        boxShadow: [AppStyles.subtleShadow],
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: DesignSystem.premiumCard().boxShadow!,
       ),
       child: isHorizontal
           ? Row(
@@ -334,11 +388,11 @@ class _WalletPageState extends State<WalletPage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: AppStyles.body.copyWith(fontSize: 12)),
+                    Text(title, style: DesignSystem.body().copyWith(fontSize: 12)),
                     const SizedBox(height: 4),
                     Text(
                       '₺${amount.toStringAsFixed(2)}',
-                      style: AppStyles.heading2.copyWith(fontSize: 20),
+                      style: DesignSystem.heading(size: 24).copyWith(fontSize: 20),
                     ),
                   ],
                 ),
@@ -349,11 +403,11 @@ class _WalletPageState extends State<WalletPage> {
               children: [
                 _buildIconContainer(icon, iconColor),
                 const SizedBox(height: 12),
-                Text(title, style: AppStyles.body.copyWith(fontSize: 12)),
+                Text(title, style: DesignSystem.body().copyWith(fontSize: 12)),
                 const SizedBox(height: 4),
                 Text(
                   '₺${amount.toStringAsFixed(0)}',
-                  style: AppStyles.heading2.copyWith(fontSize: 18),
+                  style: DesignSystem.heading(size: 24).copyWith(fontSize: 18),
                 ),
               ],
             ),
@@ -377,35 +431,35 @@ class _WalletPageState extends State<WalletPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: AppStyles.cardRadius,
-        boxShadow: [AppStyles.cardShadow],
+        color: DesignSystem.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: DesignSystem.premiumCard().boxShadow!,
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.teal.withValues(alpha: 0.1),
+              color: DesignSystem.primaryIndigo.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.quiz_outlined,
-              color: AppColors.teal,
+              color: DesignSystem.primaryIndigo,
               size: 32,
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Yatırım Profilinizi Belirleyin',
-            style: AppStyles.subheading,
+            style: DesignSystem.subheading(),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Risk toleransınızı ölçmek ve size özel portföy önerileri almak için testi tamamlayın.',
             textAlign: TextAlign.center,
-            style: AppStyles.body,
+            style: DesignSystem.body(),
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -413,11 +467,11 @@ class _WalletPageState extends State<WalletPage> {
             child: ElevatedButton(
               onPressed: () => widget.onStartInvestmentTest(''),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.teal,
+                backgroundColor: DesignSystem.primaryIndigo,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: AppStyles.buttonRadius,
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 elevation: 0,
               ),
@@ -441,15 +495,15 @@ class _WalletPageState extends State<WalletPage> {
     String description;
 
     if (profile == 'korumacı') {
-      profileColor = AppColors.teal; // Conservative matches Primary
+      profileColor = DesignSystem.primaryIndigo; // Conservative matches Primary
       profileName = 'Korumacı';
       description = 'Düşük risk, sabit getiri odaklı strateji.';
     } else if (profile == 'dengeli') {
-      profileColor = AppColors.orange; // Balanced
+      profileColor = DesignSystem.warningOrange; // Balanced
       profileName = 'Dengeli';
       description = 'Orta risk ve büyüme dengesi.';
     } else {
-      profileColor = AppColors.coral; // Aggressive
+      profileColor = DesignSystem.accentCoral; // Aggressive
       profileName = 'Agresif';
       description = 'Yüksek büyüme potansiyeli için yüksek risk.';
     }
@@ -459,9 +513,9 @@ class _WalletPageState extends State<WalletPage> {
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: AppStyles.cardRadius,
-            boxShadow: [AppStyles.cardShadow],
+            color: DesignSystem.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: DesignSystem.premiumCard().boxShadow!,
             border: Border.all(
               color: profileColor.withValues(alpha: 0.3),
               width: 1,
@@ -500,7 +554,7 @@ class _WalletPageState extends State<WalletPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(description, style: AppStyles.body),
+                    Text(description, style: DesignSystem.body()),
                     const SizedBox(height: 20),
                     const Divider(),
                     const SizedBox(height: 10),
@@ -509,7 +563,7 @@ class _WalletPageState extends State<WalletPage> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.darkGray,
+                        color: DesignSystem.gray,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -525,7 +579,7 @@ class _WalletPageState extends State<WalletPage> {
           onPressed: widget.onRetakeInvestmentTest,
           icon: const Icon(Icons.refresh, size: 18),
           label: const Text('Testi Tekrarla'),
-          style: TextButton.styleFrom(foregroundColor: AppColors.darkGray),
+          style: TextButton.styleFrom(foregroundColor: DesignSystem.gray),
         ),
       ],
     );
@@ -561,7 +615,7 @@ class _WalletPageState extends State<WalletPage> {
           padding: const EdgeInsets.only(bottom: 12.0),
           child: Row(
             children: [
-              Icon(item['icon'], size: 16, color: AppColors.darkGray),
+              Icon(item['icon'], size: 16, color: DesignSystem.gray),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -592,7 +646,7 @@ class _WalletPageState extends State<WalletPage> {
                       borderRadius: BorderRadius.circular(2),
                       child: LinearProgressIndicator(
                         value: item['pct'] / 100,
-                        backgroundColor: AppColors.background,
+                        backgroundColor: DesignSystem.background,
                         valueColor: AlwaysStoppedAnimation<Color>(color),
                         minHeight: 6,
                       ),
@@ -604,6 +658,239 @@ class _WalletPageState extends State<WalletPage> {
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildSavingsList() {
+    final savings = widget.savings;
+    if (savings.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: DesignSystem.white,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: DesignSystem.premiumCard().boxShadow!,
+        ),
+        child: Center(
+          child: Text('Henüz varlık eklenmemiş.', style: DesignSystem.body()),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: savings.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final saving = savings[index];
+        final double amount = (saving['amount'] as num).toDouble();
+        final String currency = saving['currency'];
+        final double amountInTry = _convertResultToTry(amount, currency);
+
+        IconData icon;
+        Color iconColor;
+        String symbol;
+
+        switch (currency) {
+          case 'USD':
+            icon = Icons.attach_money;
+            iconColor = Colors.green;
+            symbol = '\$';
+            break;
+          case 'EUR':
+            icon = Icons.euro;
+            iconColor = Colors.blue;
+            symbol = '€';
+            break;
+          case 'GOLD':
+            icon = Icons.diamond;
+            iconColor = Colors.orange;
+            symbol = 'gr';
+            break;
+          default:
+            icon = Icons.currency_lira;
+            iconColor = DesignSystem.primaryIndigo;
+            symbol = '₺';
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: DesignSystem.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: DesignSystem.premiumCard().boxShadow!,
+          ),
+          child: Row(
+            children: [
+              _buildIconContainer(icon, iconColor),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      saving['description'] ?? 'Tasarruf',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    Text(
+                      saving['date'],
+                      style: const TextStyle(color: DesignSystem.gray, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '$symbol${amount.toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  if (currency != 'TRY')
+                    Text(
+                      '₺${amountInTry.toStringAsFixed(2)}',
+                      style: const TextStyle(color: DesignSystem.gray, fontSize: 12),
+                    ),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: DesignSystem.accentCoral, size: 20),
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      backgroundColor: DesignSystem.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      title: Text('Varlığı Sil', style: DesignSystem.subheading()),
+                      content: const Text('Bu varlığı silmek istediğinize emin misiniz?'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('İptal')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Sil', style: TextStyle(color: DesignSystem.accentCoral, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true) {
+                    try {
+                      await ApiService.deleteSaving(saving['id']);
+                      _loadData();
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                    }
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAddSavingDialog() {
+    final amountController = TextEditingController();
+    final descriptionController = TextEditingController();
+    String selectedCurrency = 'TRY';
+    DateTime selectedDate = DateTime.now();
+
+    DesignSystem.showPremiumDialog(
+      context: context,
+      title: 'Varlık Ekle',
+      content: StatefulBuilder(
+        builder: (context, setDialogState) => SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Miktar',
+                  prefixIcon: const Icon(Icons.monetization_on_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: selectedCurrency,
+                items: const [
+                  DropdownMenuItem(value: 'TRY', child: Text('Türk Lirası (₺)')),
+                  DropdownMenuItem(value: 'USD', child: Text('Amerikan Doları (\$)')),
+                  DropdownMenuItem(value: 'EUR', child: Text('Euro (€)')),
+                  DropdownMenuItem(value: 'GOLD', child: Text('Gram Altın (gr)')),
+                ],
+                onChanged: (val) => setDialogState(() => selectedCurrency = val!),
+                decoration: InputDecoration(
+                  labelText: 'Para Birimi',
+                  prefixIcon: const Icon(Icons.currency_exchange_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: descriptionController,
+                decoration: InputDecoration(
+                  labelText: 'Açıklama',
+                  prefixIcon: const Icon(Icons.description_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: selectedDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) setDialogState(() => selectedDate = picked);
+                },
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Tarih',
+                    prefixIcon: const Icon(Icons.calendar_today_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: Text(DateFormat('yyyy-MM-dd').format(selectedDate)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+        ElevatedButton(
+          onPressed: () async {
+            final amount = double.tryParse(amountController.text);
+            if (amount != null && amount > 0) {
+              try {
+                await ApiService.addSaving(
+                  amount: amount,
+                  currency: selectedCurrency,
+                  description: descriptionController.text.isEmpty ? 'Birikim' : descriptionController.text,
+                  date: DateFormat('yyyy-MM-dd').format(selectedDate),
+                );
+                Navigator.pop(context);
+                _loadData();
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+              }
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: DesignSystem.primaryIndigo,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: const Text('Ekle'),
+        ),
+      ],
     );
   }
 }
@@ -698,8 +985,8 @@ class _InvestmentTestDialogState extends State<InvestmentTestDialog> {
     final question = questions[currentQuestion];
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: AppStyles.cardRadius),
-      backgroundColor: AppColors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      backgroundColor: DesignSystem.white,
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -709,14 +996,14 @@ class _InvestmentTestDialogState extends State<InvestmentTestDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Yatırım Testi', style: AppStyles.subheading),
+                Text('Yatırım Testi', style: DesignSystem.subheading()),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.background,
+                    color: DesignSystem.background,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -724,7 +1011,7 @@ class _InvestmentTestDialogState extends State<InvestmentTestDialog> {
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.teal,
+                      color: DesignSystem.primaryIndigo,
                     ),
                   ),
                 ),
@@ -733,8 +1020,8 @@ class _InvestmentTestDialogState extends State<InvestmentTestDialog> {
             const SizedBox(height: 12),
             LinearProgressIndicator(
               value: (currentQuestion + 1) / questions.length,
-              backgroundColor: AppColors.background,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.teal),
+              backgroundColor: DesignSystem.background,
+              valueColor: const AlwaysStoppedAnimation<Color>(DesignSystem.primaryIndigo),
               minHeight: 6,
               borderRadius: BorderRadius.circular(3),
             ),
@@ -758,7 +1045,7 @@ class _InvestmentTestDialogState extends State<InvestmentTestDialog> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.background,
+                      color: DesignSystem.background,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.transparent),
                     ),
@@ -769,13 +1056,13 @@ class _InvestmentTestDialogState extends State<InvestmentTestDialog> {
                           answer['text'] as String,
                           style: const TextStyle(
                             fontSize: 14,
-                            color: AppColors.black,
+                            color: DesignSystem.black,
                           ),
                         ),
                         const Icon(
                           Icons.arrow_forward_ios,
                           size: 14,
-                          color: AppColors.mediumGray,
+                          color: DesignSystem.lightGray,
                         ),
                       ],
                     ),

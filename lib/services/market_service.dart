@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'api_service.dart';
 
 class MarketService {
   static const String _exchangeUrl = 'https://open.er-api.com/v6/latest/USD';
@@ -12,10 +13,10 @@ class MarketService {
   };
 
   static const Map<String, double> _fallbacks = {
-    'USD/TL': 34.52,
-    'EUR/TL': 37.89,
-    'Gram Altın': 2445.75,
-    'BTC/TL': 1352450.0,
+    'USD/TL': 44.36,
+    'EUR/TL': 51.45,
+    'Gram Altın': 6500.0,
+    'BTC/TL': 3160000.0,
   };
 
   static Future<http.Response?> _fetchWithRetry(String url) async {
@@ -40,61 +41,21 @@ class MarketService {
   }
 
   static Future<Map<String, double>> getMarketData() async {
-    // Start with fallback values to ensure we always return something
-    Map<String, double> results = Map.from(_fallbacks);
-    
-    // 1. Fetch Currency Data (USD/TRY, EUR/TRY)
-    double usdTry = _fallbacks['USD/TL']!;
     try {
-      final response = await _fetchWithRetry(_exchangeUrl);
-      if (response != null) {
-        final data = json.decode(response.body);
-        if (data['result'] == 'success' && data['rates'] != null) {
-          usdTry = double.tryParse(data['rates']['TRY'].toString()) ?? usdTry;
-          double eurUsd = double.tryParse(data['rates']['EUR'].toString()) ?? 1.0;
-          
-          results['USD/TL'] = usdTry;
-          // EUR/TRY = USD/TRY / (USD to EUR rate)
-          results['EUR/TL'] = usdTry / eurUsd;
-          print('Currency processed: USD/TL=$usdTry, EUR/TL=${results['EUR/TL']}');
-        }
-      }
+      // Fetch consolidated rates from our backend (much faster)
+      final rates = await ApiService.getMarketRates();
+      
+      // Ensure all expected keys are present, fallback if missing
+      Map<String, double> results = Map.from(_fallbacks);
+      rates.forEach((key, value) {
+        results[key] = value;
+      });
+      
+      print('Market data fetched from backend successfully');
+      return results;
     } catch (e) {
-      print('Currency processing error: $e');
+      print('Failed to fetch market data from backend, using fallbacks: $e');
+      return _fallbacks;
     }
-
-    // 2. Fetch Gold Data (XAU/USD)
-    try {
-      final response = await _fetchWithRetry(_goldUrl);
-      if (response != null) {
-        final data = json.decode(response.body);
-        if (data['price'] != null) {
-          double goldUsdPerOunce = double.tryParse(data['price'].toString()) ?? 0.0;
-          if (goldUsdPerOunce > 0) {
-            // Gram Gold TL = (Ounce Price / 31.1034768) * usdTry
-            results['Gram Altın'] = (goldUsdPerOunce / 31.1034768) * usdTry;
-            print('Gold processed: price=$goldUsdPerOunce, result=${results['Gram Altın']}');
-          }
-        }
-      }
-    } catch (e) {
-      print('Gold processing error: $e');
-    }
-
-    // 3. Fetch BTC Data (BTC/TRY)
-    try {
-      final response = await _fetchWithRetry(_btcUrl);
-      if (response != null) {
-        final data = json.decode(response.body);
-        if (data['bitcoin'] != null && data['bitcoin']['try'] != null) {
-          results['BTC/TL'] = double.tryParse(data['bitcoin']['try'].toString()) ?? results['BTC/TL']!;
-          print('BTC processed: ${results['BTC/TL']}');
-        }
-      }
-    } catch (e) {
-      print('BTC processing error: $e');
-    }
-
-    return results;
   }
 }

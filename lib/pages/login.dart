@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import '../services/api_service.dart';
+
+import '../theme/design_system.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -8,17 +11,34 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
   bool _isLoginMode = true;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+  
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
   String? _errorMessage;
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeIn,
+    );
+    _animationController.forward();
+  }
 
   @override
   void dispose() {
@@ -26,6 +46,7 @@ class _LoginPageState extends State<LoginPage> {
     _passwordController.dispose();
     _nameController.dispose();
     _confirmPasswordController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -33,28 +54,12 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       _errorMessage = message;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    // Shake animation could be added here
   }
 
   Future<void> _handleLogin() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showError('Please fill in all fields');
+      _showError('Lütfen tüm alanları doldurun');
       return;
     }
 
@@ -70,24 +75,14 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (mounted) {
-        _showSuccess('Login successful!');
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted) {
-          Navigator.of(context).pushReplacementNamed('/home');
-        }
+        Navigator.of(context).pushReplacementNamed('/home');
       }
     } catch (e) {
       if (mounted) {
-        _showError(
-          'Login failed: ${e.toString().replaceAll('Exception: ', '')}',
-        );
+        _showError(e.toString().replaceAll('Exception: ', ''));
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -96,17 +91,17 @@ class _LoginPageState extends State<LoginPage> {
         _passwordController.text.isEmpty ||
         _nameController.text.isEmpty ||
         _confirmPasswordController.text.isEmpty) {
-      _showError('Please fill in all fields');
+      _showError('Lütfen tüm alanları doldurun');
       return;
     }
 
     if (_passwordController.text != _confirmPasswordController.text) {
-      _showError('Passwords do not match');
+      _showError('Şifreler uyuşmuyor');
       return;
     }
 
     if (_passwordController.text.length < 6) {
-      _showError('Password must be at least 6 characters');
+      _showError('Şifre en az 6 karakter olmalıdır');
       return;
     }
 
@@ -123,24 +118,14 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (mounted) {
-        _showSuccess('Registration successful! Welcome to GençCüzdan');
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted) {
-          Navigator.of(context).pushReplacementNamed('/home');
-        }
+        Navigator.of(context).pushReplacementNamed('/home');
       }
     } catch (e) {
       if (mounted) {
-        _showError(
-          'Registration failed: ${e.toString().replaceAll('Exception: ', '')}',
-        );
+        _showError(e.toString().replaceAll('Exception: ', ''));
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -148,336 +133,314 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       _isLoginMode = !_isLoginMode;
       _errorMessage = null;
-      _emailController.clear();
-      _passwordController.clear();
-      _nameController.clear();
-      _confirmPasswordController.clear();
     });
+    _animationController.reset();
+    _animationController.forward();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blue.shade400, Colors.blue.shade600],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Logo / App Icon
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.account_balance_wallet_rounded,
-                      size: 48,
-                      color: Colors.blue.shade600,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Title
-                  Text(
-                    _isLoginMode ? 'Hoş Geldiniz' : 'Hesap Oluştur',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _isLoginMode
-                        ? 'Finansal özet sayfasına giriş yapın'
-                        : 'GençCüzdan ile başlayın',
-                    style: const TextStyle(fontSize: 14, color: Colors.white70),
-                  ),
-                  const SizedBox(height: 40),
-
-                  // Email Field
-                  TextField(
-                    controller: _emailController,
-                    style: const TextStyle(color: Colors.white),
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      hintText: 'E-mail',
-                      hintStyle: const TextStyle(color: Colors.white70),
-                      prefixIcon: const Icon(
-                        Icons.email,
-                        color: Colors.white70,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.white30),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.white30),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.white),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Name Field (Registration only)
-                  if (!_isLoginMode) ...[
-                    TextField(
-                      controller: _nameController,
-                      style: const TextStyle(color: Colors.white),
-                      keyboardType: TextInputType.text,
-                      decoration: InputDecoration(
-                        hintText: 'Ad Soyad',
-                        hintStyle: const TextStyle(color: Colors.white70),
-                        prefixIcon: const Icon(
-                          Icons.person,
-                          color: Colors.white70,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.white30),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.white30),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.white),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Password Field
-                  TextField(
-                    controller: _passwordController,
-                    style: const TextStyle(color: Colors.white),
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      hintText: 'Şifre',
-                      hintStyle: const TextStyle(color: Colors.white70),
-                      prefixIcon: const Icon(Icons.lock, color: Colors.white70),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          color: Colors.white70,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.white30),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.white30),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.white),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Confirm Password Field (Registration only)
-                  if (!_isLoginMode) ...[
-                    TextField(
-                      controller: _confirmPasswordController,
-                      style: const TextStyle(color: Colors.white),
-                      obscureText: _obscureConfirmPassword,
-                      decoration: InputDecoration(
-                        hintText: 'Şifre Onayla',
-                        hintStyle: const TextStyle(color: Colors.white70),
-                        prefixIcon: const Icon(
-                          Icons.lock,
-                          color: Colors.white70,
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscureConfirmPassword
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                            color: Colors.white70,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _obscureConfirmPassword =
-                                  !_obscureConfirmPassword;
-                            });
-                          },
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.white30),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.white30),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.white),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Error Message
-                  if (_errorMessage != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red),
-                      ),
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Login/Register Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _isLoading
-                          ? null
-                          : (_isLoginMode ? _handleLogin : _handleRegister),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        disabledBackgroundColor: Colors.white70,
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.blue,
-                                ),
-                              ),
-                            )
-                          : Text(
-                              _isLoginMode ? 'Giriş Yap' : 'Hesap Oluştur',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Toggle Mode Button
-                  TextButton(
-                    onPressed: _isLoading ? null : _toggleMode,
-                    child: Text(
-                      _isLoginMode
-                          ? 'Henüz hesabınız yok mu? Kayıt olun'
-                          : 'Zaten hesabınız varsa giriş yapın',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Demo Login Info
-                  if (_isLoginMode)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.white30),
-                      ),
-                      child: const Column(
-                        children: [
-                          Text(
-                            'Demo Giriş Bilgileri',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'E-mail: demo@example.com',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Şifre: demo123',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
+      backgroundColor: DesignSystem.background,
+      body: Stack(
+        children: [
+          // Background Gradient Patterns
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: DesignSystem.primaryIndigo.withOpacity(0.1),
               ),
             ),
           ),
+          Positioned(
+            bottom: -50,
+            left: -50,
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: DesignSystem.primaryIndigo.withOpacity(0.05),
+              ),
+            ),
+          ),
+          
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // App Identity
+                      Hero(
+                        tag: 'app_logo',
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: DesignSystem.white,
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [DesignSystem.premiumCard().boxShadow![0]],
+                          ),
+                          child: const Icon(
+                            Icons.account_balance_wallet_rounded,
+                            size: 52,
+                            color: DesignSystem.primaryIndigo,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'GençCüzdan',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          color: DesignSystem.black,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _isLoginMode ? 'Geleceğini bugün yönetmeye başla' : 'Finansal özgürlüğe ilk adımını at',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: DesignSystem.gray.withOpacity(0.8),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 48),
+
+                      // Glassmorphism Card
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(28),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            padding: const EdgeInsets.all(32),
+                            decoration: BoxDecoration(
+                              color: DesignSystem.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(28),
+                              border: Border.all(
+                                color: DesignSystem.white.withOpacity(0.5),
+                                width: 1.5,
+                              ),
+                              boxShadow: [DesignSystem.premiumCard().boxShadow![0]],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _isLoginMode ? 'Giriş Yap' : 'Kayıt Ol',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: DesignSystem.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                
+                                if (!_isLoginMode) ...[
+                                  _buildTextField(
+                                    controller: _nameController,
+                                    hint: 'Ad Soyad',
+                                    icon: Icons.person_outline,
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+
+                                _buildTextField(
+                                  controller: _emailController,
+                                  hint: 'E-posta',
+                                  icon: Icons.email_outlined,
+                                  keyboardType: TextInputType.emailAddress,
+                                ),
+                                const SizedBox(height: 16),
+
+                                _buildTextField(
+                                  controller: _passwordController,
+                                  hint: 'Şifre',
+                                  icon: Icons.lock_outline,
+                                  isPassword: true,
+                                  obscureText: _obscurePassword,
+                                  onToggleVisibility: () => setState(() => _obscurePassword = !_obscurePassword),
+                                ),
+                                
+                                if (!_isLoginMode) ...[
+                                  const SizedBox(height: 16),
+                                  _buildTextField(
+                                    controller: _confirmPasswordController,
+                                    hint: 'Şifreyi Onayla',
+                                    icon: Icons.lock_reset_outlined,
+                                    isPassword: true,
+                                    obscureText: _obscureConfirmPassword,
+                                    onToggleVisibility: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                                  ),
+                                ],
+
+                                if (_isLoginMode)
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: () {},
+                                      child: Text(
+                                        'Şifremi Unuttum?',
+                                        style: TextStyle(
+                                          color: DesignSystem.primaryIndigo,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                
+                                const SizedBox(height: 24),
+
+                                if (_errorMessage != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    child: Text(
+                                      _errorMessage!,
+                                      style: TextStyle(color: DesignSystem.accentCoral, fontSize: 13, fontWeight: FontWeight.w500),
+                                    ),
+                                  ),
+
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 56,
+                                  child: ElevatedButton(
+                                    onPressed: _isLoading ? null : (_isLoginMode ? _handleLogin : _handleRegister),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: DesignSystem.primaryIndigo,
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                    child: _isLoading
+                                        ? const SizedBox(
+                                            height: 24,
+                                            width: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.5,
+                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                            ),
+                                          )
+                                        : Text(
+                                            _isLoginMode ? 'Giriş Yap' : 'Hesap Oluştur',
+                                            style: const TextStyle(
+                                              fontSize: 17,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 32),
+                      
+                      // Toggle Mode
+                      GestureDetector(
+                        onTap: _toggleMode,
+                        child: RichText(
+                          text: TextSpan(
+                            style: TextStyle(color: DesignSystem.gray, fontSize: 15),
+                            children: [
+                              TextSpan(text: _isLoginMode ? 'Hesabın yok mu? ' : 'Zaten üye misin? '),
+                              TextSpan(
+                                text: _isLoginMode ? 'Üye Ol' : 'Giriş Yap',
+                                style: const TextStyle(
+                                  color: DesignSystem.primaryIndigo,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 48),
+                      // Demo info for testing
+                      if (_isLoginMode)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: DesignSystem.primaryIndigo.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: DesignSystem.primaryIndigo.withOpacity(0.1)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.info_outline, size: 18, color: DesignSystem.primaryIndigo),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Demo: demo@example.com / demo123',
+                              style: TextStyle(color: DesignSystem.primaryIndigo.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool isPassword = false,
+    bool obscureText = false,
+    VoidCallback? onToggleVisibility,
+    TextInputType? keyboardType,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: DesignSystem.background.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: DesignSystem.lightGray.withOpacity(0.3)),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscureText,
+        keyboardType: keyboardType,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: DesignSystem.gray.withOpacity(0.5)),
+          prefixIcon: Icon(icon, size: 22, color: DesignSystem.primaryIndigo.withOpacity(0.7)),
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    size: 20,
+                    color: DesignSystem.gray.withOpacity(0.5),
+                  ),
+                  onPressed: onToggleVisibility,
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         ),
       ),
     );

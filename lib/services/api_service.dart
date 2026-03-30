@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://100.68.176.40:8000';
+  static const String baseUrl = 'https://api.alperlab.lol';
 
   static Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
@@ -57,6 +57,11 @@ class ApiService {
     } catch (e) {
       throw Exception('Network error: $e');
     }
+  }
+
+  static Future<Map<String, double>> getMarketRates() async {
+    final response = await get('/api/market/rates');
+    return response.map((key, value) => MapEntry(key, (value as num).toDouble()));
   }
 
   static Future<List<dynamic>> getList(String endpoint) async {
@@ -202,6 +207,7 @@ class ApiService {
     int? goalId,
     String category = 'Genel',
     bool isRecurring = false,
+    String currency = 'TRY',
   }) async {
     return await post('/api/transactions', {
       'description': description,
@@ -211,7 +217,31 @@ class ApiService {
       'goal_id': goalId,
       'category': category,
       'is_recurring': isRecurring,
+      'currency': currency,
     });
+  }
+
+  // --- SAVINGS METHODS ---
+  static Future<List<dynamic>> getSavings() async {
+    return await getList('/api/savings');
+  }
+
+  static Future<Map<String, dynamic>> addSaving({
+    required double amount,
+    required String currency,
+    required String description,
+    required String date,
+  }) async {
+    return await post('/api/savings', {
+      'amount': amount,
+      'currency': currency,
+      'description': description,
+      'date': date,
+    });
+  }
+
+  static Future<void> deleteSaving(int id) async {
+    return await delete('/api/savings/$id');
   }
 
   static Future<Map<String, dynamic>> updateTransaction(
@@ -276,6 +306,10 @@ class ApiService {
   
   static Future<void> deleteGoal(int id) async {
     return await delete('/api/goals/$id');
+  }
+
+  static Future<Map<String, dynamic>> fundGoalFromSaving(int goalId, int savingId) async {
+    return await post('/api/goals/$goalId/fund', {'saving_id': savingId});
   }
 }
 

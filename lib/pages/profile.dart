@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/design_system.dart';
 
 class ProfilePage extends StatefulWidget {
   final Map<String, dynamic>? initialProfileData;
@@ -41,77 +42,49 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.purple.withValues(alpha: 0.1),
+                  color: DesignSystem.primaryIndigo.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.person_3_rounded, size: 28, color: Colors.purple),
+                child: const Icon(Icons.person_3_rounded, size: 32, color: DesignSystem.primaryIndigo),
               ),
-              const SizedBox(width: 12),
-              const Text(
-                'Profil',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.5),
-              ),
+              const SizedBox(width: 16),
+              Text('Profil', style: DesignSystem.heading()),
             ],
           ),
           const SizedBox(height: 32),
           
           // Personal Info Card
           Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
+            padding: const EdgeInsets.all(24),
+            decoration: DesignSystem.premiumCard(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.badge_outlined, size: 20, color: Colors.purple),
+                    const Icon(Icons.badge_outlined, size: 20, color: DesignSystem.primaryIndigo),
                     const SizedBox(width: 8),
-                    Text(
-                      'Kişisel Bilgiler',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
+                    Text('Kişisel Bilgiler', style: DesignSystem.subheading(size: 16)),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 TextField(
                   controller: _nameController,
+                  style: DesignSystem.body(color: DesignSystem.black, weight: FontWeight.w600),
                   decoration: InputDecoration(
-                    hintText: 'Adınızı girin',
                     labelText: 'Tam Ad',
-                    labelStyle: const TextStyle(color: Colors.purple),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.purple, width: 2),
-                    ),
-                    prefixIcon: const Icon(Icons.person_outline, color: Colors.purple),
-                    contentPadding: const EdgeInsets.all(16),
+                    labelStyle: DesignSystem.body(color: DesignSystem.primaryIndigo),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                    prefixIcon: const Icon(Icons.person_outline, color: DesignSystem.primaryIndigo),
                   ),
                 ),
               ],
@@ -122,58 +95,32 @@ class _ProfilePageState extends State<ProfilePage> {
 
           // Job Status Card
           Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
+            padding: const EdgeInsets.all(24),
+            decoration: DesignSystem.premiumCard(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.work_outline_rounded, size: 20, color: Colors.purple),
+                    const Icon(Icons.work_outline_rounded, size: 20, color: DesignSystem.primaryIndigo),
                     const SizedBox(width: 8),
-                    Text(
-                      'Meslek Durumu',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
+                    Text('Meslek Durumu', style: DesignSystem.subheading(size: 16)),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   child: SegmentedButton<String>(
                     segments: const [
-                      ButtonSegment(
-                        value: 'öğrenci',
-                        label: Text('Öğrenci'),
-                        icon: Icon(Icons.school_outlined, size: 18),
-                      ),
-                      ButtonSegment(
-                        value: 'çalışan',
-                        label: Text('Çalışan'),
-                        icon: Icon(Icons.business_center_outlined, size: 18),
-                      ),
+                      ButtonSegment(value: 'öğrenci', label: Text('Öğrenci'), icon: Icon(Icons.school_outlined, size: 18)),
+                      ButtonSegment(value: 'çalışan', label: Text('Çalışan'), icon: Icon(Icons.business_center_outlined, size: 18)),
                     ],
                     selected: _selectedJobType != null ? {_selectedJobType!} : <String>{},
                     emptySelectionAllowed: true,
-                    onSelectionChanged: (Set<String> newSelection) {
-                      setState(() {
-                        _selectedJobType = newSelection.isEmpty ? null : newSelection.first;
-                      });
-                    },
+                    onSelectionChanged: (Set<String> s) => setState(() => _selectedJobType = s.isEmpty ? null : s.first),
                     style: SegmentedButton.styleFrom(
-                      selectedBackgroundColor: Colors.purple.withValues(alpha: 0.1),
-                      selectedForegroundColor: Colors.purple,
-                      side: BorderSide(color: Colors.grey.shade200),
+                      selectedBackgroundColor: DesignSystem.primaryIndigo.withOpacity(0.1),
+                      selectedForegroundColor: DesignSystem.primaryIndigo,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
@@ -183,24 +130,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   TextField(
                     controller: _salaryController,
                     keyboardType: TextInputType.number,
+                    style: DesignSystem.body(color: DesignSystem.black, weight: FontWeight.w600),
                     decoration: InputDecoration(
-                      hintText: _selectedJobType == 'öğrenci' ? 'Aylık Harçlık/Gelir (₺)' : 'Aylık Maaş (₺)',
-                      labelText: 'Aylık Gelir',
-                      labelStyle: const TextStyle(color: Colors.purple),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.purple, width: 2),
-                      ),
-                      prefixIcon: const Icon(Icons.account_balance_wallet_outlined, color: Colors.purple),
-                      contentPadding: const EdgeInsets.all(16),
+                      labelText: _selectedJobType == 'öğrenci' ? 'Aylık Harçlık (₺)' : 'Aylık Maaş (₺)',
+                      labelStyle: DesignSystem.body(color: DesignSystem.primaryIndigo),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                      prefixIcon: const Icon(Icons.account_balance_wallet_outlined, color: DesignSystem.primaryIndigo),
                     ),
                   ),
                 ],
@@ -222,24 +157,22 @@ class _ProfilePageState extends State<ProfilePage> {
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: const Text('Profil bilgileriniz başarıyla güncellendi'),
-                    backgroundColor: Colors.green.shade600,
+                    content: const Text('Profil güncellendi'),
+                    backgroundColor: DesignSystem.secondaryGreen,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,
+                backgroundColor: DesignSystem.primaryIndigo,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 4,
-                shadowColor: Colors.purple.withValues(alpha: 0.3),
+                shadowColor: Colors.black.withOpacity(0.15),
               ),
-              child: const Text('Değişiklikleri Kaydet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              child: Text('Değişiklikleri Kaydet', style: DesignSystem.subheading(color: Colors.white, size: 16)),
             ),
           ),
           
@@ -250,37 +183,25 @@ class _ProfilePageState extends State<ProfilePage> {
           Center(
             child: TextButton.icon(
               onPressed: () {
-                showDialog(
+                DesignSystem.showPremiumDialog(
                   context: context,
-                  builder: (BuildContext context) => AlertDialog(
-                    title: const Text('Çıkış Yap'),
-                    content: const Text(
-                      'Hesabınızdan çıkış yapmak istediğinize emin misiniz?',
+                  title: 'Çıkış Yap',
+                  content: const Text('Hesabınızdan çıkış yapmak istediğinize emin misiniz?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        widget.onLogout();
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: DesignSystem.accentCoral, foregroundColor: Colors.white),
+                      child: const Text('Çıkış Yap'),
                     ),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Vazgeç'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          widget.onLogout();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: const Text('Çıkış Yap'),
-                      ),
-                    ],
-                  ),
+                  ],
                 );
               },
-              icon: const Icon(Icons.logout_rounded, color: Colors.red),
-              label: const Text('Hesaptan Çıkış Yap', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+              icon: const Icon(Icons.logout_rounded, color: DesignSystem.accentCoral),
+              label: Text('Hesaptan Çıkış Yap', style: DesignSystem.subheading(color: DesignSystem.accentCoral, size: 14)),
             ),
           ),
           const SizedBox(height: 40),

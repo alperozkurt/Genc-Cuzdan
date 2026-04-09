@@ -820,23 +820,27 @@ class _HomePageState extends State<HomePage> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(28),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        height: 100,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         decoration: BoxDecoration(
           color: DesignSystem.white,
           borderRadius: BorderRadius.circular(28),
           boxShadow: [DesignSystem.premiumCard().boxShadow![0]],
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _buildIconContainer(icon, color),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
               title,
               style: DesignSystem.body().copyWith(
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -863,7 +867,7 @@ class _HomePageState extends State<HomePage> {
     String selectedCategory = 'Diğer';
     bool isRecurring = false;
     int? selectedGoalId;
-    
+
     if (goals.isNotEmpty && _currentGoalIndex < goals.length) {
       final g = goals[_currentGoalIndex];
       if (g['is_completed'] != true && g['is_completed'] != 1) {
@@ -871,113 +875,263 @@ class _HomePageState extends State<HomePage> {
       }
     }
 
-    DesignSystem.showPremiumDialog(
+    showModalBottomSheet(
       context: context,
-      title: 'İşlem Ekle',
-      content: StatefulBuilder(
-        builder: (context, setDialogState) => SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'gelir', label: Text('Gelir'), icon: Icon(Icons.arrow_upward_rounded)),
-                  ButtonSegment(value: 'gider', label: Text('Gider'), icon: Icon(Icons.arrow_downward_rounded)),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (context, setSheetState) {
+          final isGelir = selectedType == 'gelir';
+          final accentColor = isGelir ? DesignSystem.secondaryGreen : DesignSystem.accentCoral;
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Drag handle
+                  const SizedBox(height: 12),
+                  Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+                  // Animated colored header
+                  TweenAnimationBuilder<Color?>(
+                    tween: ColorTween(
+                      begin: isGelir ? DesignSystem.accentCoral : DesignSystem.secondaryGreen,
+                      end: accentColor,
+                    ),
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    builder: (context, animColor, _) {
+                      final c = animColor ?? accentColor;
+                      return Container(
+                        margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [c.withValues(alpha: 0.15), c.withValues(alpha: 0.04)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: c.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          children: [
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 250),
+                              transitionBuilder: (child, anim) => ScaleTransition(
+                                scale: CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
+                                child: FadeTransition(opacity: anim, child: child),
+                              ),
+                              child: Container(
+                                key: ValueKey(selectedType),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(color: c.withValues(alpha: 0.15), shape: BoxShape.circle),
+                                child: Icon(
+                                  isGelir ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                                  color: c,
+                                  size: 22,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('İşlem Ekle', style: DesignSystem.heading(size: 20)),
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 200),
+                                  transitionBuilder: (child, anim) => FadeTransition(
+                                    opacity: anim,
+                                    child: SlideTransition(
+                                      position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(anim),
+                                      child: child,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    key: ValueKey(selectedType),
+                                    isGelir ? 'Gelir kaydı ekle' : 'Gider kaydı ekle',
+                                    style: DesignSystem.body(color: c, size: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Type toggle
+                          Container(
+                            decoration: BoxDecoration(color: DesignSystem.lightGray, borderRadius: BorderRadius.circular(14)),
+                            padding: const EdgeInsets.all(4),
+                            child: Row(
+                              children: ['gelir', 'gider'].map((type) {
+                                final sel = selectedType == type;
+                                final tc = type == 'gelir' ? DesignSystem.secondaryGreen : DesignSystem.accentCoral;
+                                return Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => setSheetState(() => selectedType = type),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 200),
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: sel ? Colors.white : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(10),
+                                        boxShadow: sel ? [BoxShadow(color: tc.withValues(alpha: 0.15), blurRadius: 8)] : null,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(type == 'gelir' ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded, color: sel ? tc : DesignSystem.gray, size: 16),
+                                          const SizedBox(width: 6),
+                                          Text(type == 'gelir' ? 'Gelir' : 'Gider', style: DesignSystem.body(color: sel ? tc : DesignSystem.gray, weight: sel ? FontWeight.w700 : FontWeight.w500)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TweenAnimationBuilder<Color?>(
+                            tween: ColorTween(
+                              begin: isGelir ? DesignSystem.accentCoral : DesignSystem.secondaryGreen,
+                              end: accentColor,
+                            ),
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                            builder: (context, animColor, _) {
+                              final c = animColor ?? accentColor;
+                              return TextField(
+                                controller: amountController,
+                                keyboardType: TextInputType.number,
+                                style: DesignSystem.heading(size: 18, color: DesignSystem.black),
+                                decoration: InputDecoration(
+                                  labelText: 'Miktar (₺)',
+                                  prefixIcon: Icon(Icons.monetization_on_outlined, color: c),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: c.withValues(alpha: 0.3))),
+                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: c, width: 2)),
+                                  labelStyle: TextStyle(color: c),
+                                  filled: true,
+                                  fillColor: c.withValues(alpha: 0.04),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: descriptionController,
+                            textCapitalization: TextCapitalization.sentences,
+                            decoration: InputDecoration(
+                              labelText: 'Açıklama',
+                              prefixIcon: const Icon(Icons.description_outlined),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Goal picker — pill chips
+                          _buildGoalChips(
+                            goals: goals,
+                            selectedGoalId: selectedGoalId,
+                            onChanged: (val) => setSheetState(() => selectedGoalId = val),
+                            accentColor: accentColor,
+                          ),
+                          const SizedBox(height: 12),
+                          // Category chips
+                          _buildCategoryChips(
+                            categories: _categories,
+                            selected: selectedCategory,
+                            onChanged: (val) => setSheetState(() => selectedCategory = val),
+                            accentColor: accentColor,
+                          ),
+                          const SizedBox(height: 8),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Düzenli İşlem', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                            value: isRecurring,
+                            onChanged: (val) => setSheetState(() => isRecurring = val),
+                            activeColor: DesignSystem.primaryIndigo,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(context).viewPadding.bottom),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                            child: const Text('İptal'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: TweenAnimationBuilder<Color?>(
+                            tween: ColorTween(
+                              begin: isGelir ? DesignSystem.accentCoral : DesignSystem.secondaryGreen,
+                              end: accentColor,
+                            ),
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                            builder: (context, animColor, _) {
+                              final c = animColor ?? accentColor;
+                              return ElevatedButton(
+                                onPressed: () async {
+                                  final amount = double.tryParse(amountController.text);
+                                  if (amount != null && amount > 0) {
+                                    Navigator.pop(ctx);
+                                    try {
+                                      await ApiService.addTransaction(
+                                        amount: amount,
+                                        description: descriptionController.text.isEmpty ? (selectedType == 'gelir' ? 'Gelir' : 'Gider') : descriptionController.text,
+                                        type: selectedType,
+                                        date: DateTime.now().toIso8601String().substring(0, 10),
+                                        goalId: selectedGoalId,
+                                        category: selectedCategory,
+                                        isRecurring: isRecurring,
+                                      );
+                                      await _loadData();
+                                    } catch (e) {
+                                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                                    }
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: c,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  elevation: 0,
+                                ),
+                                child: const Text('Kaydet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
-                selected: {selectedType},
-                onSelectionChanged: (Set<String> newSelection) => setDialogState(() => selectedType = newSelection.first),
-                style: SegmentedButton.styleFrom(
-                  selectedBackgroundColor: selectedType == 'gelir' ? DesignSystem.secondaryGreen.withOpacity(0.2) : DesignSystem.accentCoral.withOpacity(0.2),
-                  selectedForegroundColor: selectedType == 'gelir' ? DesignSystem.secondaryGreen : DesignSystem.accentCoral,
-                ),
               ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Miktar (₺)',
-                  prefixIcon: const Icon(Icons.monetization_on_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descriptionController,
-                decoration: InputDecoration(
-                  labelText: 'Açıklama',
-                  prefixIcon: const Icon(Icons.description_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<int>(
-                value: selectedGoalId,
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('Hedefsiz')),
-                  ...goals.where((g) => g['is_completed'] != true).map((g) => DropdownMenuItem(value: g['id'], child: Text(g['title']))),
-                ],
-                onChanged: (val) => setDialogState(() => selectedGoalId = val),
-                decoration: InputDecoration(
-                  labelText: 'İlişkili Hedef',
-                  prefixIcon: const Icon(Icons.track_changes),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: selectedCategory,
-                items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                onChanged: (val) => setDialogState(() => selectedCategory = val!),
-                decoration: InputDecoration(
-                  labelText: 'Kategori',
-                  prefixIcon: const Icon(Icons.category_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                title: const Text('Düzenli İşlem', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                value: isRecurring,
-                onChanged: (val) => setDialogState(() => isRecurring = val),
-                activeColor: DesignSystem.primaryIndigo,
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
-        ElevatedButton(
-          onPressed: () async {
-            final amount = double.tryParse(amountController.text);
-            if (amount != null && amount > 0) {
-              Navigator.pop(context);
-              try {
-                await ApiService.addTransaction(
-                  amount: amount,
-                  description: descriptionController.text.isEmpty ? (selectedType == 'gelir' ? 'Gelir' : 'Gider') : descriptionController.text,
-                  type: selectedType,
-                  date: DateTime.now().toIso8601String().substring(0, 10),
-                  goalId: selectedGoalId,
-                  category: selectedCategory,
-                  isRecurring: isRecurring,
-                );
-                await _loadData();
-              } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
-              }
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: DesignSystem.primaryIndigo,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          ),
-          child: const Text('Kaydet'),
-        ),
-      ],
+            ),
+          );
+        });
+      },
     );
   }
 
@@ -1106,77 +1260,155 @@ class _HomePageState extends State<HomePage> {
     final labelController = TextEditingController();
     final amountController = TextEditingController();
     String selectedCategory = 'Diğer';
+    const accentColor = DesignSystem.warningOrange;
 
-    DesignSystem.showPremiumDialog(
+    showModalBottomSheet(
       context: context,
-      title: 'Yeni Kayıtlı Gider',
-      content: StatefulBuilder(
-        builder: (context, setDialogState) => SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: labelController,
-                decoration: InputDecoration(
-                  labelText: 'Gider Adı (örn: Otobüs)',
-                  prefixIcon: const Icon(Icons.label_outline),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (context, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Varsayılan Miktar (₺)',
-                  prefixIcon: const Icon(Icons.monetization_on_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+                  // Header
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [accentColor.withValues(alpha: 0.15), accentColor.withValues(alpha: 0.04)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: accentColor.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.15), shape: BoxShape.circle),
+                          child: const Icon(Icons.bookmark_add_outlined, color: accentColor, size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Yeni Hızlı Gider', style: DesignSystem.heading(size: 20)),
+                            Text('Şablon oluştur', style: DesignSystem.body(color: accentColor, size: 13)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextField(
+                            controller: labelController,
+                            textCapitalization: TextCapitalization.sentences,
+                            style: DesignSystem.heading(size: 16, color: DesignSystem.black),
+                            decoration: InputDecoration(
+                              labelText: 'Gider Adı (örn: Otobüs)',
+                              prefixIcon: const Icon(Icons.label_outline, color: accentColor),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: accentColor.withValues(alpha: 0.3))),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: accentColor, width: 2)),
+                              labelStyle: const TextStyle(color: accentColor),
+                              filled: true,
+                              fillColor: accentColor.withValues(alpha: 0.04),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: amountController,
+                            keyboardType: TextInputType.number,
+                            style: DesignSystem.heading(size: 18, color: DesignSystem.black),
+                            decoration: InputDecoration(
+                              labelText: 'Varsayılan Miktar (₺)',
+                              prefixIcon: const Icon(Icons.monetization_on_outlined, color: accentColor),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: accentColor.withValues(alpha: 0.3))),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: accentColor, width: 2)),
+                              labelStyle: const TextStyle(color: accentColor),
+                              filled: true,
+                              fillColor: accentColor.withValues(alpha: 0.04),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildCategoryChips(
+                            categories: _categories,
+                            selected: selectedCategory,
+                            onChanged: (val) => setSheetState(() => selectedCategory = val),
+                            accentColor: accentColor,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(context).viewPadding.bottom),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                            child: const Text('İptal'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final amount = double.tryParse(amountController.text);
+                              if (labelController.text.isNotEmpty && amount != null && amount > 0) {
+                                Navigator.pop(ctx);
+                                try {
+                                  await ApiService.createSavedExpense(
+                                    label: labelController.text.trim(),
+                                    amount: amount,
+                                    category: selectedCategory,
+                                  );
+                                  final refreshed = await ApiService.getSavedExpenses();
+                                  setState(() => savedExpenses = List<Map<String, dynamic>>.from(refreshed));
+                                  parentSetState?.call(() {});
+                                } catch (e) {
+                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accentColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 0,
+                            ),
+                            child: const Text('Kaydet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: selectedCategory,
-                items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                onChanged: (val) => setDialogState(() => selectedCategory = val!),
-                decoration: InputDecoration(
-                  labelText: 'Kategori',
-                  prefixIcon: const Icon(Icons.category_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
-        ElevatedButton(
-          onPressed: () async {
-            final amount = double.tryParse(amountController.text);
-            if (labelController.text.isNotEmpty && amount != null && amount > 0) {
-              Navigator.pop(context);
-              try {
-                await ApiService.createSavedExpense(
-                  label: labelController.text.trim(),
-                  amount: amount,
-                  category: selectedCategory,
-                );
-                final refreshed = await ApiService.getSavedExpenses();
-                setState(() => savedExpenses = List<Map<String, dynamic>>.from(refreshed));
-                parentSetState?.call(() {});
-              } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
-              }
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: DesignSystem.warningOrange,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: const Text('Kaydet'),
-        ),
-      ],
+            ),
+          );
+        });
+      },
     );
   }
 
@@ -1184,71 +1416,144 @@ class _HomePageState extends State<HomePage> {
     final amountController = TextEditingController(
       text: (expense['amount'] as num).toStringAsFixed(0),
     );
+    const accentColor = DesignSystem.warningOrange;
+    final label = expense['label'] as String? ?? 'Gider';
+    final category = expense['category'] as String? ?? 'Genel';
 
-    DesignSystem.showPremiumDialog(
+    showModalBottomSheet(
       context: context,
-      title: expense['label'] ?? 'Gider Ekle',
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Kategori: ${expense['category'] ?? 'Genel'}',
-            style: DesignSystem.body(color: DesignSystem.gray, size: 13),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: amountController,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'Miktar (₺)',
-              prefixIcon: const Icon(Icons.monetization_on_outlined),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 12),
+                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+                // Header
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [accentColor.withValues(alpha: 0.15), accentColor.withValues(alpha: 0.04)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: accentColor.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.15), shape: BoxShape.circle),
+                        child: const Icon(Icons.receipt_long_rounded, color: accentColor, size: 22),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(label, style: DesignSystem.heading(size: 20), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            Text(category, style: DesignSystem.body(color: accentColor, size: 13)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: amountController,
+                        keyboardType: TextInputType.number,
+                        style: DesignSystem.heading(size: 22, color: DesignSystem.black),
+                        decoration: InputDecoration(
+                          labelText: 'Miktar (₺)',
+                          prefixIcon: const Icon(Icons.monetization_on_outlined, color: accentColor),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: accentColor.withValues(alpha: 0.3))),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: accentColor, width: 2)),
+                          labelStyle: const TextStyle(color: accentColor),
+                          filled: true,
+                          fillColor: accentColor.withValues(alpha: 0.04),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Miktarı değiştirebilir veya varsayılan değerle ekleyebilirsiniz.',
+                        style: DesignSystem.body(color: DesignSystem.gray, size: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(context).viewPadding.bottom),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                          child: const Text('İptal'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            final amount = double.tryParse(amountController.text);
+                            if (amount != null && amount > 0) {
+                              Navigator.pop(ctx);
+                              try {
+                                final defaultAmount = (expense['amount'] as num).toDouble();
+                                await ApiService.applySavedExpense(
+                                  expense['id'],
+                                  overrideAmount: amount != defaultAmount ? amount : null,
+                                );
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('$label eklendi: ₺${amount.toStringAsFixed(0)}'),
+                                      backgroundColor: accentColor,
+                                    ),
+                                  );
+                                }
+                                await _loadData();
+                              } catch (e) {
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accentColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            elevation: 0,
+                          ),
+                          child: const Text('Gider Olarak Ekle', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Miktarı değiştirebilir veya varsayılan değerle ekleyebilirsiniz.',
-            style: DesignSystem.body(color: DesignSystem.gray, size: 11),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
-        ElevatedButton(
-          onPressed: () async {
-            final amount = double.tryParse(amountController.text);
-            if (amount != null && amount > 0) {
-              Navigator.pop(context);
-              try {
-                final defaultAmount = (expense['amount'] as num).toDouble();
-                await ApiService.applySavedExpense(
-                  expense['id'],
-                  overrideAmount: amount != defaultAmount ? amount : null,
-                );
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('${expense['label']} eklendi: ₺${amount.toStringAsFixed(0)}'),
-                      backgroundColor: DesignSystem.warningOrange,
-                    ),
-                  );
-                }
-                await _loadData();
-              } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
-              }
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: DesignSystem.warningOrange,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          ),
-          child: const Text('Gider Olarak Ekle'),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -1259,107 +1564,221 @@ class _HomePageState extends State<HomePage> {
     String selectedCategory = 'Diğer';
     String selectedIcon = 'stars_rounded';
 
-    DesignSystem.showPremiumDialog(
+    showModalBottomSheet(
       context: context,
-      title: 'Yeni Hedef Oluştur',
-      content: StatefulBuilder(
-        builder: (context, setDialogState) => SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: 'Hedef Adı (örn: Laptop)',
-                  prefixIcon: const Icon(Icons.edit_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (context, setSheetState) {
+          final accentColor = _colorMap[selectedColor] ?? DesignSystem.primaryIndigo;
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Hedef Miktar (₺)',
-                  prefixIcon: const Icon(Icons.flag_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: selectedCategory,
-                items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                onChanged: (val) => setDialogState(() => selectedCategory = val!),
-                decoration: InputDecoration(
-                  labelText: 'Kategori',
-                  prefixIcon: const Icon(Icons.category_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: selectedIcon,
-                items: _goalIconOptions.map((iconMap) => DropdownMenuItem(value: iconMap['key'] as String, child: Row(children: [Icon(iconMap['iconData'] as IconData, size: 20, color: DesignSystem.gray,), const SizedBox(width: 8), Text(iconMap['label'] as String)]))).toList(),
-                onChanged: (val) => setDialogState(() => selectedIcon = val!),
-                decoration: InputDecoration(
-                  labelText: 'İkon',
-                  prefixIcon: const Icon(Icons.star_outline),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: _colorMap.keys.map((colorName) {
-                  return GestureDetector(
-                    onTap: () => setDialogState(() => selectedColor = colorName),
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: _colorMap[colorName],
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: selectedColor == colorName ? Colors.black : Colors.transparent,
-                          width: 2,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [accentColor.withValues(alpha: 0.15), accentColor.withValues(alpha: 0.04)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: accentColor.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.15), shape: BoxShape.circle),
+                          child: Icon(Icons.track_changes_rounded, color: accentColor, size: 22),
                         ),
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Yeni Hedef', style: DesignSystem.heading(size: 20)),
+                            Text('Tasarruf hedefinizi belirleyin', style: DesignSystem.body(color: accentColor, size: 13)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextField(
+                            controller: nameController,
+                            textCapitalization: TextCapitalization.sentences,
+                            decoration: InputDecoration(
+                              labelText: 'Hedef Adı (örn: Laptop)',
+                              prefixIcon: Icon(Icons.edit_outlined, color: accentColor),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: accentColor.withValues(alpha: 0.3))),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: accentColor, width: 2)),
+                              labelStyle: TextStyle(color: accentColor),
+                              filled: true,
+                              fillColor: accentColor.withValues(alpha: 0.04),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: amountController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: 'Hedef Miktar (₺)',
+                              prefixIcon: Icon(Icons.flag_outlined, color: accentColor),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: accentColor.withValues(alpha: 0.3))),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: accentColor, width: 2)),
+                              labelStyle: TextStyle(color: accentColor),
+                              filled: true,
+                              fillColor: accentColor.withValues(alpha: 0.04),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildCategoryChips(
+                            categories: _categories,
+                            selected: selectedCategory,
+                            onChanged: (val) => setSheetState(() => selectedCategory = val),
+                            accentColor: accentColor,
+                          ),
+                          const SizedBox(height: 12),
+                          // Icon picker chips
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.star_outline, color: accentColor, size: 16),
+                                  const SizedBox(width: 6),
+                                  Text('İkon Seç', style: DesignSystem.body(color: accentColor, size: 13, weight: FontWeight.w600)),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: _goalIconOptions.map((iconMap) {
+                                    final key = iconMap['key'] as String;
+                                    final isSel = selectedIcon == key;
+                                    return GestureDetector(
+                                      onTap: () => setSheetState(() => selectedIcon = key),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 180),
+                                        margin: const EdgeInsets.only(right: 10),
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                                        decoration: BoxDecoration(
+                                          color: isSel ? accentColor : DesignSystem.lightGray,
+                                          borderRadius: BorderRadius.circular(20),
+                                          boxShadow: isSel ? [BoxShadow(color: accentColor.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3))] : null,
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(iconMap['iconData'] as IconData, size: 16, color: isSel ? Colors.white : DesignSystem.gray),
+                                            const SizedBox(width: 6),
+                                            Text(iconMap['label'] as String, style: DesignSystem.body(color: isSel ? Colors.white : DesignSystem.gray, size: 12, weight: isSel ? FontWeight.w700 : FontWeight.w500)),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text('Renk Seç', style: DesignSystem.body(size: 13, color: DesignSystem.gray, weight: FontWeight.w600)),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: _colorMap.keys.map((colorName) {
+                              final isSelected = selectedColor == colorName;
+                              final c = _colorMap[colorName]!;
+                              return GestureDetector(
+                                onTap: () => setSheetState(() => selectedColor = colorName),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: c,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: isSelected ? Colors.black87 : Colors.transparent, width: 2.5),
+                                    boxShadow: isSelected ? [BoxShadow(color: c.withValues(alpha: 0.5), blurRadius: 10, offset: const Offset(0, 3))] : null,
+                                  ),
+                                  child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                }).toList(),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(context).viewPadding.bottom),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                            child: const Text('İptal'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final amountValue = double.tryParse(amountController.text);
+                              if (nameController.text.isNotEmpty && amountValue != null) {
+                                Navigator.pop(ctx);
+                                try {
+                                  await ApiService.createGoal({
+                                    'title': nameController.text.trim(),
+                                    'target_amount': amountValue,
+                                    'category': selectedCategory,
+                                    'color': selectedColor,
+                                    'icon': selectedIcon,
+                                  });
+                                  await _loadData();
+                                } catch (e) {
+                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accentColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 0,
+                            ),
+                            child: const Text('Oluştur', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
-        ElevatedButton(
-          onPressed: () async {
-            final amountValue = double.tryParse(amountController.text);
-            if (nameController.text.isNotEmpty && amountValue != null) {
-              Navigator.pop(context);
-              try {
-                await ApiService.createGoal({
-                  'title': nameController.text.trim(),
-                  'target_amount': amountValue,
-                  'category': selectedCategory,
-                  'color': selectedColor,
-                });
-                await _loadData();
-              } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
-              }
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: DesignSystem.primaryIndigo,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: const Text('Oluştur'),
-        ),
-      ],
+            ),
+          );
+        });
+      },
     );
   }
 
@@ -1420,33 +1839,145 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// Chip-grid category selector — replaces plain dropdown, faster and on-brand
+  Widget _buildCategoryChips({
+    required List<String> categories,
+    required String selected,
+    required ValueChanged<String> onChanged,
+    required Color accentColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.category_outlined, color: accentColor, size: 16),
+            const SizedBox(width: 6),
+            Text('Kategori', style: DesignSystem.body(color: accentColor, size: 13, weight: FontWeight.w600)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: categories.map((cat) {
+            final isSel = cat == selected;
+            return GestureDetector(
+              onTap: () => onChanged(cat),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isSel ? accentColor : DesignSystem.lightGray,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: isSel ? [BoxShadow(color: accentColor.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3))] : null,
+                ),
+                child: Text(
+                  cat,
+                  style: DesignSystem.body(
+                    color: isSel ? Colors.white : DesignSystem.gray,
+                    size: 13,
+                    weight: isSel ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  /// Chip-based goal picker — shows active goals as tappable pills + "Hedefsiz"
+  Widget _buildGoalChips({
+    required List<Map<String, dynamic>> goals,
+    required int? selectedGoalId,
+    required ValueChanged<int?> onChanged,
+    required Color accentColor,
+  }) {
+    final activeGoals = goals.where((g) => g['is_completed'] != true && g['is_completed'] != 1).toList();
+    if (activeGoals.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.track_changes_rounded, color: accentColor, size: 16),
+            const SizedBox(width: 6),
+            Text('İlişkili Hedef', style: DesignSystem.body(color: accentColor, size: 13, weight: FontWeight.w600)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              // "Hedefsiz" pill
+              GestureDetector(
+                onTap: () => onChanged(null),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: selectedGoalId == null ? DesignSystem.gray : DesignSystem.lightGray,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text('Hedefsiz', style: DesignSystem.body(color: selectedGoalId == null ? Colors.white : DesignSystem.gray, size: 13, weight: FontWeight.w600)),
+                ),
+              ),
+              ...activeGoals.map((g) {
+                final gId = g['id'] as int;
+                final isSel = selectedGoalId == gId;
+                final gColor = (_colorMap[g['color']] ?? accentColor);
+                return GestureDetector(
+                  onTap: () => onChanged(gId),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: isSel ? gColor : DesignSystem.lightGray,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: isSel ? [BoxShadow(color: gColor.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3))] : null,
+                    ),
+                    child: Text(g['title'], style: DesignSystem.body(color: isSel ? Colors.white : DesignSystem.gray, size: 13, weight: isSel ? FontWeight.w700 : FontWeight.w500)),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildOngoingGoalsGrid(List<Map<String, dynamic>> activeGoals) {
     if (activeGoals.isEmpty) {
-       return const Padding(
-         padding: EdgeInsets.symmetric(vertical: 24),
-         child: Center(child: Text('Aktif hedefiniz bulunmamaktadır', style: TextStyle(color: Colors.grey))),
-       );
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: Text('Aktif hedefiniz bulunmamaktadır', style: TextStyle(color: Colors.grey))),
+      );
     }
+    // Horizontal scrolling cards — width is bounded so no overflow
     return LayoutBuilder(
       builder: (context, constraints) {
-        int crossAxisCount = constraints.maxWidth > 600 ? 3 : 2;
-        if (activeGoals.length == 1) crossAxisCount = 1;
-
-        return GridView.builder(
+        final cardWidth = activeGoals.length == 1 ? constraints.maxWidth : 160.0;
+        return SizedBox(
           key: const ValueKey('activeGrid'),
-          physics: const NeverScrollableScrollPhysics(),
-          shrinkWrap: true,
-          padding: EdgeInsets.zero,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: activeGoals.length == 1 ? 2.5 : 1.1,
+          height: 200,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.zero,
+            itemCount: activeGoals.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              return SizedBox(
+                width: cardWidth,
+                child: _buildNewGoalCard(activeGoals[index]),
+              );
+            },
           ),
-          itemCount: activeGoals.length,
-          itemBuilder: (context, index) {
-            return _buildNewGoalCard(activeGoals[index]);
-          },
         );
       },
     );
@@ -1484,7 +2015,7 @@ class _HomePageState extends State<HomePage> {
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: completedGoals.length == 1 ? 2.5 : 1.1,
+            childAspectRatio: completedGoals.length == 1 ? 2.8 : 0.85,
           ),
           itemCount: completedGoals.length,
           itemBuilder: (context, index) {
@@ -1500,62 +2031,84 @@ class _HomePageState extends State<HomePage> {
     Color goalCol = isCompleted ? Colors.amber : (_colorMap[goal['color']] ?? Colors.purple);
     double amount = (goal['target_amount'] as num).toDouble();
     double savedAmount = (goal['saved_amount'] as num?)?.toDouble() ?? 0.0;
-    
-    // Safety check for completion bounds
+
     if (isCompleted) savedAmount = amount;
-    
     double currentProgress = (savedAmount / amount).clamp(0.0, 1.0);
     IconData icon = _getIconData(goal['icon'] ?? 'stars_rounded');
-    
+
     return GestureDetector(
       onTap: () => _showGoalModal(goal, goalCol, amount, savedAmount, currentProgress, isCompleted),
       child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: isCompleted ? 
-          BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.amber, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.amber.withOpacity(0.2),
-                blurRadius: 15,
-                spreadRadius: 2,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ) : DesignSystem.premiumCard(),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+        decoration: isCompleted
+            ? BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.amber, width: 2),
+                boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.18), blurRadius: 14, offset: const Offset(0, 5))],
+              )
+            : DesignSystem.premiumCard(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            // Top row: icon + progress badge
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(isCompleted ? Icons.emoji_events : icon, color: isCompleted ? Colors.amber : goalCol, size: 24),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: goalCol.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                  child: Text(isCompleted ? '\u2705' : '${(currentProgress * 100).toStringAsFixed(0)}%', style: DesignSystem.body(color: goalCol, weight: FontWeight.w700, size: 12)),
-                )
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(color: goalCol.withValues(alpha: 0.12), shape: BoxShape.circle),
+                  child: Icon(isCompleted ? Icons.emoji_events : icon, color: goalCol, size: 18),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(color: goalCol.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                  child: Text(
+                    isCompleted ? '✅' : '${(currentProgress * 100).toStringAsFixed(0)}%',
+                    style: DesignSystem.body(color: goalCol, weight: FontWeight.w800, size: 11),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
+            // Progress ring centred
             Center(
               child: SizedBox(
-                width: 60,
-                height: 60,
+                width: 52,
+                height: 52,
                 child: CustomPaint(
                   painter: _ProgressRingPainter(progress: currentProgress, color: goalCol),
-                  child: Center(
-                    child: Icon(icon, color: goalCol.withOpacity(0.5), size: 24),
-                  ),
+                  child: Center(child: Icon(icon, color: goalCol.withValues(alpha: 0.5), size: 20)),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            Text(goal['title'], style: DesignSystem.subheading(size: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text('₺${amount.toStringAsFixed(0)}', style: DesignSystem.heading(size: 16, color: goalCol)),
+            const SizedBox(height: 10),
+            // Title
+            Text(
+              goal['title'],
+              style: DesignSystem.subheading(size: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            // Amount
+            Text(
+              '₺${amount >= 1000 ? '${(amount / 1000).toStringAsFixed(0)}k' : amount.toStringAsFixed(0)}',
+              style: DesignSystem.heading(size: 13, color: goalCol),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 6),
+            // Thin progress bar at bottom
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: currentProgress,
+                minHeight: 4,
+                backgroundColor: goalCol.withValues(alpha: 0.12),
+                valueColor: AlwaysStoppedAnimation<Color>(goalCol),
+              ),
+            ),
           ],
         ),
       ),
@@ -1653,44 +2206,143 @@ class _HomePageState extends State<HomePage> {
                           future: ApiService.getGoalHistory(goal['id'] as int),
                           builder: (context, snapshot) {
                             if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const SizedBox(height: 150, child: Center(child: CircularProgressIndicator()));
+                              return const SizedBox(height: 180, child: Center(child: CircularProgressIndicator()));
                             }
                             if (snapshot.hasError) {
-                              return SizedBox(height: 150, child: Center(child: Text('Hata oluştu: ${snapshot.error}')));
+                              return SizedBox(
+                                height: 180,
+                                child: Center(child: Text('Grafik yüklenemedi: ${snapshot.error}', style: const TextStyle(color: Colors.grey))),
+                              );
                             }
                             
                             final history = snapshot.data ?? {};
-                            if (history.isEmpty) {
-                              return const SizedBox(height: 150, child: Center(child: Text('Henüz veri yok.')));
+
+                            // Build spots — either real data or a flat zero placeholder
+                            final List<FlSpot> spots;
+                            final bool hasData = history.isNotEmpty;
+                            if (hasData) {
+                              spots = history.values.toList().asMap().entries
+                                  .map((e) => FlSpot(e.key.toDouble(), (e.value as num).toDouble()))
+                                  .toList();
+                            } else {
+                              // Empty template: a flat line at 0 across 5 dummy points
+                              spots = List.generate(5, (i) => FlSpot(i.toDouble(), 0));
                             }
-                            
-                            return SizedBox(
-                              height: 150,
-                              child: LineChart(
-                                LineChartData(
-                                  gridData: const FlGridData(show: false),
-                                  titlesData: const FlTitlesData(show: false),
-                                  borderData: FlBorderData(show: false),
-                                  minX: 0,
-                                  maxX: max(1, history.length.toDouble() - 1),
-                                  minY: 0,
-                                  maxY: amount,
-                                  lineBarsData: [
-                                    LineChartBarData(
-                                      spots: history.values.toList().asMap().entries.map((e) => FlSpot(e.key.toDouble(), (e.value as num).toDouble())).toList(),
-                                      isCurved: true,
-                                      color: goalCol,
-                                      barWidth: 3,
-                                      isStrokeCapRound: true,
-                                      dotData: const FlDotData(show: false),
-                                      belowBarData: BarAreaData(
+
+                            return Stack(
+                              children: [
+                                SizedBox(
+                                  height: 180,
+                                  child: LineChart(
+                                    LineChartData(
+                                      gridData: FlGridData(
                                         show: true,
-                                        gradient: LinearGradient(colors: [goalCol.withOpacity(0.3), goalCol.withOpacity(0.0)], begin: Alignment.topCenter, end: Alignment.bottomCenter),
+                                        drawVerticalLine: false,
+                                        getDrawingHorizontalLine: (_) => FlLine(
+                                          color: Colors.grey.withOpacity(0.15),
+                                          strokeWidth: 1,
+                                        ),
+                                      ),
+                                      titlesData: FlTitlesData(
+                                        show: true,
+                                        leftTitles: AxisTitles(
+                                          sideTitles: SideTitles(
+                                            showTitles: true,
+                                            reservedSize: 42,
+                                            getTitlesWidget: (value, meta) {
+                                              if (value == 0) return const Text('');
+                                              return Text(
+                                                '₺${value >= 1000 ? '${(value / 1000).toStringAsFixed(0)}k' : value.toStringAsFixed(0)}',
+                                                style: const TextStyle(fontSize: 9, color: Colors.grey),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                        bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                      ),
+                                      borderData: FlBorderData(
+                                        show: true,
+                                        border: Border(
+                                          bottom: BorderSide(color: Colors.grey.withOpacity(0.2), width: 1),
+                                          left: BorderSide(color: Colors.grey.withOpacity(0.2), width: 1),
+                                        ),
+                                      ),
+                                      minX: 0,
+                                      maxX: max(4, spots.length.toDouble() - 1),
+                                      minY: 0,
+                                      maxY: amount > 0 ? amount : 1,
+                                      // Target line
+                                      extraLinesData: ExtraLinesData(
+                                        horizontalLines: [
+                                          HorizontalLine(
+                                            y: amount > 0 ? amount : 1,
+                                            color: goalCol.withOpacity(0.4),
+                                            strokeWidth: 1.5,
+                                            dashArray: [6, 4],
+                                            label: HorizontalLineLabel(
+                                              show: true,
+                                              alignment: Alignment.topRight,
+                                              labelResolver: (_) => 'Hedef',
+                                              style: TextStyle(color: goalCol, fontSize: 10, fontWeight: FontWeight.w600),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      lineBarsData: [
+                                        LineChartBarData(
+                                          spots: spots,
+                                          isCurved: true,
+                                          color: hasData ? goalCol : Colors.grey.shade300,
+                                          barWidth: hasData ? 3 : 2,
+                                          isStrokeCapRound: true,
+                                          dotData: FlDotData(
+                                            show: hasData,
+                                            getDotPainter: (spot, percent, barData, index) =>
+                                                FlDotCirclePainter(
+                                              radius: 3,
+                                              color: Colors.white,
+                                              strokeWidth: 2,
+                                              strokeColor: goalCol,
+                                            ),
+                                          ),
+                                          belowBarData: BarAreaData(
+                                            show: true,
+                                            gradient: LinearGradient(
+                                              colors: hasData
+                                                  ? [goalCol.withOpacity(0.25), goalCol.withOpacity(0.0)]
+                                                  : [Colors.grey.withOpacity(0.08), Colors.grey.withOpacity(0.0)],
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                if (!hasData)
+                                  Positioned.fill(
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.show_chart_rounded, size: 32, color: Colors.grey.shade300),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            'Henüz işlem kaydı yok',
+                                            style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                                          ),
+                                          Text(
+                                            'Gelir/gider ekledikçe grafik oluşacak',
+                                            style: TextStyle(color: Colors.grey.shade300, fontSize: 10),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ],
-                                ),
-                              ),
+                                  ),
+                              ],
                             );
                           }
                         ),
@@ -2061,9 +2713,9 @@ class _HomePageState extends State<HomePage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            final bottomPad = MediaQuery.of(context).viewPadding.bottom;
             return Container(
               height: MediaQuery.of(context).size.height * 0.75,
-              padding: const EdgeInsets.all(24),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -2071,63 +2723,119 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const SizedBox(height: 12),
                   Center(child: Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)))),
-                  const SizedBox(height: 24),
-                  Text('Döviz Kurlarını Özelleştir', style: DesignSystem.heading(size: 22)),
+                  // Colored header
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [DesignSystem.primaryIndigo.withValues(alpha: 0.12), DesignSystem.primaryIndigo.withValues(alpha: 0.04)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: DesignSystem.primaryIndigo.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(color: DesignSystem.primaryIndigo.withValues(alpha: 0.15), shape: BoxShape.circle),
+                          child: const Icon(Icons.tune_rounded, color: DesignSystem.primaryIndigo, size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Döviz Kurlarını Özelleştir', style: DesignSystem.heading(size: 18)),
+                            Text('En az 1, en fazla 6 kur seçin', style: DesignSystem.body(color: DesignSystem.primaryIndigo, size: 13)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text('Ana ekranda görmek istediğiniz kurları seçin. (En az 1, en fazla 6)', style: DesignSystem.body(size: 14)),
-                  const SizedBox(height: 20),
                   Expanded(
                     child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: _currencyRegistry.length,
                       itemBuilder: (context, index) {
                         final meta = _currencyRegistry[index];
                         final isSelected = tempSelection.contains(meta['key']);
-                        
-                        return CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Row(
-                            children: [
-                              Icon(meta['iconData'], color: meta['color'], size: 20),
-                              const SizedBox(width: 12),
-                              Text(meta['label'], style: DesignSystem.subheading(size: 16)),
-                            ],
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          margin: const EdgeInsets.only(bottom: 6),
+                          decoration: BoxDecoration(
+                            color: isSelected ? (meta['color'] as Color).withValues(alpha: 0.07) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isSelected ? (meta['color'] as Color).withValues(alpha: 0.3) : Colors.transparent,
+                              width: 1.5,
+                            ),
                           ),
-                          activeColor: DesignSystem.primaryIndigo,
-                          value: isSelected,
-                          onChanged: (bool? val) {
-                            setModalState(() {
-                              if (val == true) {
-                                if (tempSelection.length < 6) {
-                                  tempSelection.add(meta['key']);
+                          child: CheckboxListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            title: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(color: (meta['color'] as Color).withValues(alpha: 0.12), shape: BoxShape.circle),
+                                  child: Icon(meta['iconData'], color: meta['color'], size: 18),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(meta['label'], style: DesignSystem.subheading(size: 15, color: isSelected ? meta['color'] : DesignSystem.black)),
+                              ],
+                            ),
+                            activeColor: meta['color'],
+                            checkColor: Colors.white,
+                            value: isSelected,
+                            onChanged: (bool? val) {
+                              setModalState(() {
+                                if (val == true) {
+                                  if (tempSelection.length < 6) {
+                                    tempSelection.add(meta['key']);
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('En fazla 6 kur seçebilirsiniz.')));
+                                  }
                                 } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('En fazla 6 kur seçebilirsiniz.')));
+                                  if (tempSelection.length > 1) {
+                                    tempSelection.remove(meta['key']);
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('En az 1 kur seçmelisiniz.')));
+                                  }
                                 }
-                              } else {
-                                if (tempSelection.length > 1) {
-                                  tempSelection.remove(meta['key']);
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('En az 1 kur seçmelisiniz.')));
-                                }
-                              }
-                            });
-                          },
+                              });
+                            },
+                          ),
                         );
                       },
                     ),
                   ),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedCurrencies = List.from(tempSelection);
-                        });
-                        _saveSelectedCurrencies();
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(backgroundColor: DesignSystem.primaryIndigo, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                      child: const Text('Kaydet ve Uygula', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomPad),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _selectedCurrencies = List.from(tempSelection);
+                          });
+                          _saveSelectedCurrencies();
+                          Navigator.pop(context);
+                        },
+                        icon: const Icon(Icons.check_rounded, size: 18),
+                        label: const Text('Kaydet ve Uygula', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: DesignSystem.primaryIndigo,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
+                        ),
+                      ),
                     ),
                   ),
                 ],

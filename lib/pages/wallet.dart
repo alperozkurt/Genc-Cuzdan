@@ -117,7 +117,7 @@ class _WalletPageState extends State<WalletPage> {
               onRefresh: _loadData,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -147,7 +147,7 @@ class _WalletPageState extends State<WalletPage> {
                     else
                       _buildInvestorProfileSection(),
 
-                    const SizedBox(height: 80), // Bottom spacing
+                    const SizedBox(height: 32), // Bottom spacing for FAB
                   ],
                 ),
               ),
@@ -661,8 +661,18 @@ class _WalletPageState extends State<WalletPage> {
     );
   }
 
+  // Currency metadata helper (reused in multiple places)
+  Map<String, dynamic> _getCurrencyMeta(String currency) {
+    switch (currency) {
+      case 'USD': return {'icon': Icons.attach_money, 'color': const Color(0xFF27AE60), 'symbol': '\$', 'label': 'Amerikan Doları'};
+      case 'EUR': return {'icon': Icons.euro, 'color': const Color(0xFF2980B9), 'symbol': '€', 'label': 'Euro'};
+      case 'GOLD': return {'icon': Icons.diamond, 'color': const Color(0xFFF39C12), 'symbol': 'gr', 'label': 'Gram Altın'};
+      default:     return {'icon': Icons.currency_lira, 'color': DesignSystem.primaryIndigo, 'symbol': '₺', 'label': 'Türk Lirası'};
+    }
+  }
+
   Widget _buildSavingsList() {
-    final savings = widget.savings;
+    final savings = _savings;
     if (savings.isEmpty) {
       return Container(
         width: double.infinity,
@@ -673,120 +683,311 @@ class _WalletPageState extends State<WalletPage> {
           boxShadow: DesignSystem.premiumCard().boxShadow!,
         ),
         child: Center(
-          child: Text('Henüz varlık eklenmemiş.', style: DesignSystem.body()),
+          child: Column(
+            children: [
+              Icon(Icons.savings_outlined, size: 48, color: DesignSystem.primaryIndigo.withValues(alpha: 0.4)),
+              const SizedBox(height: 12),
+              Text('Henüz varlık eklenmemiş.', style: DesignSystem.body()),
+              const SizedBox(height: 4),
+              Text('Sağ alttaki + butonuyla birikim ekleyin', style: DesignSystem.body(size: 12)),
+            ],
+          ),
         ),
       );
     }
 
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: savings.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final saving = savings[index];
-        final double amount = (saving['amount'] as num).toDouble();
-        final String currency = saving['currency'];
-        final double amountInTry = _convertResultToTry(amount, currency);
+    // Group savings by currency for display
+    final Map<String, List<dynamic>> grouped = {};
+    for (final s in savings) {
+      final c = s['currency'] as String? ?? 'TRY';
+      grouped.putIfAbsent(c, () => []).add(s);
+    }
 
-        IconData icon;
-        Color iconColor;
-        String symbol;
+    return Column(
+      children: grouped.entries.map((entry) {
+        final currency = entry.key;
+        final items = entry.value;
+        final meta = _getCurrencyMeta(currency);
+        final color = meta['color'] as Color;
+        final symbol = meta['symbol'] as String;
+        final icon = meta['icon'] as IconData;
+        final label = meta['label'] as String;
 
-        switch (currency) {
-          case 'USD':
-            icon = Icons.attach_money;
-            iconColor = Colors.green;
-            symbol = '\$';
-            break;
-          case 'EUR':
-            icon = Icons.euro;
-            iconColor = Colors.blue;
-            symbol = '€';
-            break;
-          case 'GOLD':
-            icon = Icons.diamond;
-            iconColor = Colors.orange;
-            symbol = 'gr';
-            break;
-          default:
-            icon = Icons.currency_lira;
-            iconColor = DesignSystem.primaryIndigo;
-            symbol = '₺';
-        }
+        // Total for this currency
+        final double total = items.fold(0.0, (sum, s) => sum + (s['amount'] as num).toDouble());
+        final double totalTry = _convertResultToTry(total, currency);
 
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: DesignSystem.white,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: DesignSystem.premiumCard().boxShadow!,
-          ),
-          child: Row(
-            children: [
-              _buildIconContainer(icon, iconColor),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        return GestureDetector(
+          onTap: () => _showSavingHistory(currency, items, meta),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: DesignSystem.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: color.withValues(alpha: 0.15)),
+              boxShadow: DesignSystem.premiumCard().boxShadow!,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+                  child: Icon(icon, color: color, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label, style: DesignSystem.subheading(size: 15)),
+                      Text('${items.length} kayıt', style: DesignSystem.body(size: 12)),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      saving['description'] ?? 'Tasarruf',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    Text(
-                      saving['date'],
-                      style: const TextStyle(color: DesignSystem.gray, fontSize: 12),
-                    ),
+                    Text('$symbol${total.toStringAsFixed(currency == 'GOLD' ? 2 : 0)}',
+                        style: DesignSystem.heading(size: 17, color: color)),
+                    if (currency != 'TRY')
+                      Text('\u20ba${totalTry.toStringAsFixed(0)}',
+                          style: DesignSystem.body(size: 12, color: DesignSystem.gray)),
                   ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '$symbol${amount.toStringAsFixed(2)}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  if (currency != 'TRY')
-                    Text(
-                      '₺${amountInTry.toStringAsFixed(2)}',
-                      style: const TextStyle(color: DesignSystem.gray, fontSize: 12),
-                    ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: DesignSystem.accentCoral, size: 20),
-                onPressed: () async {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      backgroundColor: DesignSystem.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                      title: Text('Varlığı Sil', style: DesignSystem.subheading()),
-                      content: const Text('Bu varlığı silmek istediğinize emin misiniz?'),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('İptal')),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Sil', style: TextStyle(color: DesignSystem.accentCoral, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirmed == true) {
-                    try {
-                      await ApiService.deleteSaving(saving['id']);
-                      _loadData();
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
-                    }
-                  }
-                },
-              ),
-            ],
+                const SizedBox(width: 8),
+                Icon(Icons.chevron_right_rounded, color: color.withValues(alpha: 0.6), size: 20),
+              ],
+            ),
           ),
         );
+      }).toList(),
+    );
+  }
+
+  void _showSavingHistory(String currency, List<dynamic> items, Map<String, dynamic> meta) {
+    final color = meta['color'] as Color;
+    final symbol = meta['symbol'] as String;
+    final icon = meta['icon'] as IconData;
+    final label = meta['label'] as String;
+
+    // Sort newest first
+    final sorted = List<dynamic>.from(items)
+      ..sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (context, setSheetState) {
+          // Recompute totals after potential delete
+          final double total = sorted.fold(0.0, (s, e) => s + (e['amount'] as num).toDouble());
+          final double totalTry = _convertResultToTry(total, currency);
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.82,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              children: [
+                // Drag handle
+                const SizedBox(height: 12),
+                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+                // Header banner
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color.withValues(alpha: 0.15), color.withValues(alpha: 0.04)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: color.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
+                        child: Icon(icon, color: color, size: 22),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(label, style: DesignSystem.heading(size: 18)),
+                            Text('${sorted.length} kayıt • toplam $symbol${total.toStringAsFixed(currency == 'GOLD' ? 2 : 0)}',
+                                style: DesignSystem.body(color: color, size: 13)),
+                          ],
+                        ),
+                      ),
+                      if (currency != 'TRY') ...
+                        [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text('₺${totalTry.toStringAsFixed(0)}',
+                                  style: DesignSystem.heading(size: 16, color: color)),
+                              Text('TL karşılığı', style: DesignSystem.body(size: 11)),
+                            ],
+                          ),
+                        ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // History list
+                Expanded(
+                  child: sorted.isEmpty
+                    ? Center(child: Text('Kayıt yok', style: DesignSystem.body()))
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        itemCount: sorted.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final item = sorted[index];
+                          final double amount = (item['amount'] as num).toDouble();
+                          final double amountTry = _convertResultToTry(amount, currency);
+
+                          // Running total up to this point (from oldest)
+                          double runningTotal = 0;
+                          for (int i = sorted.length - 1; i >= index; i--) {
+                            runningTotal += (sorted[i]['amount'] as num).toDouble();
+                          }
+                          final double pct = total > 0 ? (runningTotal / total) * 100 : 0;
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: DesignSystem.lightGray,
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: Row(
+                              children: [
+                                // Index bubble
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
+                                  child: Center(
+                                    child: Text('${sorted.length - index}',
+                                        style: DesignSystem.body(color: color, size: 12, weight: FontWeight.w800)),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(item['description'] ?? 'Tasarruf',
+                                          style: DesignSystem.body(color: DesignSystem.black, size: 14, weight: FontWeight.w600),
+                                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          Icon(Icons.calendar_today_outlined, size: 11, color: DesignSystem.gray),
+                                          const SizedBox(width: 4),
+                                          Text(item['date'] ?? '', style: DesignSystem.body(size: 11)),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                                            child: Text('${pct.toStringAsFixed(0)}% toplam',
+                                                style: DesignSystem.body(color: color, size: 10, weight: FontWeight.w700)),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text('$symbol${amount.toStringAsFixed(currency == 'GOLD' ? 2 : 0)}',
+                                        style: DesignSystem.subheading(size: 15, color: color)),
+                                    if (currency != 'TRY')
+                                      Text('₺${amountTry.toStringAsFixed(0)}',
+                                          style: DesignSystem.body(size: 11)),
+                                  ],
+                                ),
+                                const SizedBox(width: 4),
+                                GestureDetector(
+                                  onTap: () async {
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx2) => AlertDialog(
+                                        backgroundColor: DesignSystem.white,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                        title: Text('Varlığı Sil', style: DesignSystem.subheading()),
+                                        content: const Text('Bu varlığı silmek istediğinize emin misiniz?'),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(ctx2, false), child: const Text('İptal')),
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx2, true),
+                                            child: const Text('Sil', style: TextStyle(color: DesignSystem.accentCoral, fontWeight: FontWeight.bold)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirmed == true) {
+                                      try {
+                                        await ApiService.deleteSaving(item['id']);
+                                        setSheetState(() => sorted.removeAt(index));
+                                        _loadData();
+                                        if (sorted.isEmpty && context.mounted) Navigator.pop(context);
+                                      } catch (e) {
+                                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                                      }
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: DesignSystem.accentCoral.withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.delete_outline_rounded, color: DesignSystem.accentCoral, size: 16),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + MediaQuery.of(context).viewPadding.bottom),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _showAddSavingDialog();
+                      },
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: Text('$label Ekle'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: color,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        });
       },
     );
   }
@@ -797,100 +998,219 @@ class _WalletPageState extends State<WalletPage> {
     String selectedCurrency = 'TRY';
     DateTime selectedDate = DateTime.now();
 
-    DesignSystem.showPremiumDialog(
+    // Currency metadata for chip display
+    final currencies = [
+      {'key': 'TRY', 'label': 'Türk Lirası', 'symbol': '₺', 'icon': Icons.currency_lira, 'color': DesignSystem.primaryIndigo},
+      {'key': 'USD', 'label': 'Dolar', 'symbol': '\$', 'icon': Icons.attach_money, 'color': const Color(0xFF27AE60)},
+      {'key': 'EUR', 'label': 'Euro', 'symbol': '€', 'icon': Icons.euro, 'color': const Color(0xFF2980B9)},
+      {'key': 'GOLD', 'label': 'Gram Altın', 'symbol': 'gr', 'icon': Icons.diamond, 'color': const Color(0xFFF39C12)},
+    ];
+
+    showModalBottomSheet(
       context: context,
-      title: 'Varlık Ekle',
-      content: StatefulBuilder(
-        builder: (context, setDialogState) => SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Miktar',
-                  prefixIcon: const Icon(Icons.monetization_on_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (context, setSheetState) {
+          final currMeta = currencies.firstWhere((c) => c['key'] == selectedCurrency, orElse: () => currencies[0]);
+          final accentColor = currMeta['color'] as Color;
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: selectedCurrency,
-                items: const [
-                  DropdownMenuItem(value: 'TRY', child: Text('Türk Lirası (₺)')),
-                  DropdownMenuItem(value: 'USD', child: Text('Amerikan Doları (\$)')),
-                  DropdownMenuItem(value: 'EUR', child: Text('Euro (€)')),
-                  DropdownMenuItem(value: 'GOLD', child: Text('Gram Altın (gr)')),
-                ],
-                onChanged: (val) => setDialogState(() => selectedCurrency = val!),
-                decoration: InputDecoration(
-                  labelText: 'Para Birimi',
-                  prefixIcon: const Icon(Icons.currency_exchange_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descriptionController,
-                decoration: InputDecoration(
-                  labelText: 'Açıklama',
-                  prefixIcon: const Icon(Icons.description_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: selectedDate,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2100),
-                  );
-                  if (picked != null) setDialogState(() => selectedDate = picked);
-                },
-                child: InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: 'Tarih',
-                    prefixIcon: const Icon(Icons.calendar_today_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Drag handle
+                  const SizedBox(height: 12),
+                  Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+                  // Colored header
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [accentColor.withValues(alpha: 0.15), accentColor.withValues(alpha: 0.04)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: accentColor.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.15), shape: BoxShape.circle),
+                          child: Icon(currMeta['icon'] as IconData, color: accentColor, size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Varlık Ekle', style: DesignSystem.heading(size: 20)),
+                            Text('Birikim kaydı oluştur', style: DesignSystem.body(color: accentColor, size: 13)),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Text(DateFormat('yyyy-MM-dd').format(selectedDate)),
-                ),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Currency chip picker
+                          Row(
+                            children: [
+                              Icon(Icons.currency_exchange_outlined, color: accentColor, size: 16),
+                              const SizedBox(width: 6),
+                              Text('Para Birimi', style: DesignSystem.body(color: accentColor, size: 13, weight: FontWeight.w600)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: currencies.map((c) {
+                              final isSel = selectedCurrency == c['key'];
+                              final cc = c['color'] as Color;
+                              return Expanded(
+                                child: GestureDetector(
+                                  onTap: () => setSheetState(() => selectedCurrency = c['key'] as String),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    margin: const EdgeInsets.only(right: 8),
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: isSel ? cc : DesignSystem.lightGray,
+                                      borderRadius: BorderRadius.circular(14),
+                                      boxShadow: isSel ? [BoxShadow(color: cc.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3))] : null,
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Icon(c['icon'] as IconData, color: isSel ? Colors.white : DesignSystem.gray, size: 18),
+                                        const SizedBox(height: 3),
+                                        Text(c['symbol'] as String, style: DesignSystem.body(color: isSel ? Colors.white : DesignSystem.gray, size: 12, weight: isSel ? FontWeight.w800 : FontWeight.w500)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: amountController,
+                            keyboardType: TextInputType.number,
+                            style: DesignSystem.heading(size: 18, color: DesignSystem.black),
+                            decoration: InputDecoration(
+                              labelText: 'Miktar (${currMeta['symbol']})',
+                              prefixIcon: Icon(currMeta['icon'] as IconData, color: accentColor),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: accentColor.withValues(alpha: 0.3))),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: accentColor, width: 2)),
+                              labelStyle: TextStyle(color: accentColor),
+                              filled: true,
+                              fillColor: accentColor.withValues(alpha: 0.04),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: descriptionController,
+                            textCapitalization: TextCapitalization.sentences,
+                            decoration: InputDecoration(
+                              labelText: 'Açıklama',
+                              prefixIcon: const Icon(Icons.description_outlined),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Date row styled as a toggle-like tile
+                          GestureDetector(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: selectedDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2100),
+                              );
+                              if (picked != null) setSheetState(() => selectedDate = picked);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              decoration: BoxDecoration(
+                                color: DesignSystem.lightGray,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.calendar_today_outlined, color: accentColor, size: 20),
+                                  const SizedBox(width: 12),
+                                  Text(DateFormat('dd MMM yyyy').format(selectedDate),
+                                      style: DesignSystem.body(color: DesignSystem.black, weight: FontWeight.w600)),
+                                  const Spacer(),
+                                  Icon(Icons.edit_calendar_outlined, color: DesignSystem.gray, size: 18),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(context).viewPadding.bottom),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                            child: const Text('İptal'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final amount = double.tryParse(amountController.text);
+                              if (amount != null && amount > 0) {
+                                try {
+                                  await ApiService.addSaving(
+                                    amount: amount,
+                                    currency: selectedCurrency,
+                                    description: descriptionController.text.isEmpty ? 'Birikim' : descriptionController.text,
+                                    date: DateFormat('yyyy-MM-dd').format(selectedDate),
+                                  );
+                                  Navigator.pop(ctx);
+                                  _loadData();
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accentColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 0,
+                            ),
+                            child: const Text('Ekle', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
-        ElevatedButton(
-          onPressed: () async {
-            final amount = double.tryParse(amountController.text);
-            if (amount != null && amount > 0) {
-              try {
-                await ApiService.addSaving(
-                  amount: amount,
-                  currency: selectedCurrency,
-                  description: descriptionController.text.isEmpty ? 'Birikim' : descriptionController.text,
-                  date: DateFormat('yyyy-MM-dd').format(selectedDate),
-                );
-                Navigator.pop(context);
-                _loadData();
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
-              }
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: DesignSystem.primaryIndigo,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: const Text('Ekle'),
-        ),
-      ],
+            ),
+          );
+        });
+      },
     );
   }
 }

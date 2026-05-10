@@ -10,6 +10,7 @@ import '../services/market_service.dart';
 import 'package:confetti/confetti.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 import '../theme/design_system.dart';
 
 // HomePage now uses DesignSystem and unified theme.
@@ -101,7 +102,9 @@ class _HomePageState extends State<HomePage> {
   bool _showCompletedGoals = false;
   final List<Map<String, dynamic>> _goalIconOptions = [
     {'label': 'Genel', 'iconData': Icons.stars_rounded, 'key': 'stars_rounded'},
-    {'label': 'Ev', 'iconData': Icons.home_rounded, 'key': 'home_rounded'},
+    {'label': 'Oyun', 'iconData': Icons.sports_esports_rounded, 'key': 'sports_esports_rounded'},
+    {'label': 'Bisiklet', 'iconData': Icons.pedal_bike_rounded, 'key': 'pedal_bike_rounded'},
+    {'label': 'Kıyafet', 'iconData': Icons.checkroom_rounded, 'key': 'checkroom_rounded'},
     {'label': 'Araç', 'iconData': Icons.directions_car_rounded, 'key': 'directions_car_rounded'},
     {'label': 'Eğitim', 'iconData': Icons.school_rounded, 'key': 'school_rounded'},
     {'label': 'Tatil', 'iconData': Icons.flight_takeoff_rounded, 'key': 'flight_takeoff_rounded'},
@@ -447,6 +450,7 @@ class _HomePageState extends State<HomePage> {
         return const TermsPage();
       case 3:
         return ProfilePage(
+          completedGoalsCount: goals.where((g) => g['is_completed'] == true || g['is_completed'] == 1).length,
           initialProfileData: {
             'name': savedName,
             'job_type': savedJobType,
@@ -865,7 +869,7 @@ class _HomePageState extends State<HomePage> {
     final descriptionController = TextEditingController();
     String selectedType = 'gelir';
     String selectedCategory = 'Diğer';
-    bool isRecurring = false;
+    bool isNeed = true;
     int? selectedGoalId;
 
     if (goals.isNotEmpty && _currentGoalIndex < goals.length) {
@@ -1016,6 +1020,7 @@ class _HomePageState extends State<HomePage> {
                               return TextField(
                                 controller: amountController,
                                 keyboardType: TextInputType.number,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                                 style: DesignSystem.heading(size: 18, color: DesignSystem.black),
                                 decoration: InputDecoration(
                                   labelText: 'Miktar (₺)',
@@ -1056,22 +1061,36 @@ class _HomePageState extends State<HomePage> {
                             accentColor: accentColor,
                           ),
                           const SizedBox(height: 8),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Düzenli İşlem', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                            value: isRecurring,
-                            onChanged: (val) => setSheetState(() => isRecurring = val),
-                            activeColor: DesignSystem.primaryIndigo,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(context).viewPadding.bottom),
-                    child: Row(
-                      children: [
-                        Expanded(
+                          if (!isGelir) ...[
+                            Text('Bu Harcama Türü Nedir?', style: DesignSystem.body(weight: FontWeight.w600)),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: SegmentedButton<bool>(
+                                segments: const [
+                                  ButtonSegment(value: true, label: Text('İhtiyaç'), icon: Icon(Icons.check_circle_outline, size: 18)),
+                                  ButtonSegment(value: false, label: Text('İstek'), icon: Icon(Icons.favorite_border, size: 18)),
+                                ],
+                                selected: {isNeed},
+                                emptySelectionAllowed: false,
+                                onSelectionChanged: (Set<bool> s) => setSheetState(() => isNeed = s.first),
+                                style: SegmentedButton.styleFrom(
+                                  selectedBackgroundColor: DesignSystem.primaryIndigo.withOpacity(0.1),
+                                  selectedForegroundColor: DesignSystem.primaryIndigo,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                         ],
+                       ),
+                     ),
+                   ),
+                   Padding(
+                     padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + (MediaQuery.of(context).viewInsets.bottom > 0 ? 0 : MediaQuery.of(context).viewPadding.bottom)),
+                     child: Row(
+                       children: [
+                         Expanded(
                           child: OutlinedButton(
                             onPressed: () => Navigator.pop(ctx),
                             style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
@@ -1103,11 +1122,11 @@ class _HomePageState extends State<HomePage> {
                                         date: DateTime.now().toIso8601String().substring(0, 10),
                                         goalId: selectedGoalId,
                                         category: selectedCategory,
-                                        isRecurring: isRecurring,
+                                        isNeed: isGelir ? true : isNeed,
                                       );
                                       await _loadData();
                                     } catch (e) {
-                                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                                      if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Hata: $e')));
                                     }
                                   }
                                 },
@@ -1222,7 +1241,7 @@ class _HomePageState extends State<HomePage> {
                                 setState(() => savedExpenses = List<Map<String, dynamic>>.from(refreshed));
                                 setSheetState(() {});
                               } catch (e) {
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                                if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Hata: $e')));
                               }
                             },
                             child: ListTile(
@@ -1335,6 +1354,7 @@ class _HomePageState extends State<HomePage> {
                           TextField(
                             controller: amountController,
                             keyboardType: TextInputType.number,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                             style: DesignSystem.heading(size: 18, color: DesignSystem.black),
                             decoration: InputDecoration(
                               labelText: 'Varsayılan Miktar (₺)',
@@ -1358,7 +1378,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   Padding(
-                    padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(context).viewPadding.bottom),
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + (MediaQuery.of(context).viewInsets.bottom > 0 ? 0 : MediaQuery.of(context).viewPadding.bottom)),
                     child: Row(
                       children: [
                         Expanded(
@@ -1386,7 +1406,7 @@ class _HomePageState extends State<HomePage> {
                                   setState(() => savedExpenses = List<Map<String, dynamic>>.from(refreshed));
                                   parentSetState?.call(() {});
                                 } catch (e) {
-                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                                  if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Hata: $e')));
                                 }
                               }
                             },
@@ -1478,6 +1498,7 @@ class _HomePageState extends State<HomePage> {
                       TextField(
                         controller: amountController,
                         keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         style: DesignSystem.heading(size: 22, color: DesignSystem.black),
                         decoration: InputDecoration(
                           labelText: 'Miktar (₺)',
@@ -1498,7 +1519,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 Padding(
-                  padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(context).viewPadding.bottom),
+                  padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + (MediaQuery.of(context).viewInsets.bottom > 0 ? 0 : MediaQuery.of(context).viewPadding.bottom)),
                   child: Row(
                     children: [
                       Expanded(
@@ -1532,7 +1553,7 @@ class _HomePageState extends State<HomePage> {
                                 }
                                 await _loadData();
                               } catch (e) {
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
+                                if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
                               }
                             }
                           },
@@ -1563,6 +1584,7 @@ class _HomePageState extends State<HomePage> {
     String selectedColor = 'purple';
     String selectedCategory = 'Diğer';
     String selectedIcon = 'stars_rounded';
+    bool isNeed = true;
 
     showModalBottomSheet(
       context: context,
@@ -1636,6 +1658,7 @@ class _HomePageState extends State<HomePage> {
                           TextField(
                             controller: amountController,
                             keyboardType: TextInputType.number,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                             decoration: InputDecoration(
                               labelText: 'Hedef Miktar (₺)',
                               prefixIcon: Icon(Icons.flag_outlined, color: accentColor),
@@ -1644,6 +1667,25 @@ class _HomePageState extends State<HomePage> {
                               labelStyle: TextStyle(color: accentColor),
                               filled: true,
                               fillColor: accentColor.withValues(alpha: 0.04),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text('Bu Hedef Türü Nedir?', style: DesignSystem.body(weight: FontWeight.w600)),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: SegmentedButton<bool>(
+                              segments: const [
+                                ButtonSegment(value: true, label: Text('İhtiyaç'), icon: Icon(Icons.check_circle_outline, size: 18)),
+                                ButtonSegment(value: false, label: Text('İstek'), icon: Icon(Icons.favorite_border, size: 18)),
+                              ],
+                              selected: {isNeed},
+                              emptySelectionAllowed: false,
+                              onSelectionChanged: (Set<bool> s) => setSheetState(() => isNeed = s.first),
+                              style: SegmentedButton.styleFrom(
+                                selectedBackgroundColor: DesignSystem.primaryIndigo.withOpacity(0.1),
+                                selectedForegroundColor: DesignSystem.primaryIndigo,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -1728,7 +1770,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   Padding(
-                    padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(context).viewPadding.bottom),
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + (MediaQuery.of(context).viewInsets.bottom > 0 ? 0 : MediaQuery.of(context).viewPadding.bottom)),
                     child: Row(
                       children: [
                         Expanded(
@@ -1753,10 +1795,11 @@ class _HomePageState extends State<HomePage> {
                                     'category': selectedCategory,
                                     'color': selectedColor,
                                     'icon': selectedIcon,
+                                    'is_need': isNeed,
                                   });
                                   await _loadData();
                                 } catch (e) {
-                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                                  if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Hata: $e')));
                                 }
                               }
                             },
@@ -2004,7 +2047,6 @@ class _HomePageState extends State<HomePage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         int crossAxisCount = constraints.maxWidth > 600 ? 3 : 2;
-        if (completedGoals.length == 1) crossAxisCount = 1;
 
         return GridView.builder(
           key: const ValueKey('completedGrid'),
@@ -2015,7 +2057,7 @@ class _HomePageState extends State<HomePage> {
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: completedGoals.length == 1 ? 2.8 : 0.85,
+            childAspectRatio: 0.85,
           ),
           itemCount: completedGoals.length,
           itemBuilder: (context, index) {
@@ -2098,6 +2140,16 @@ class _HomePageState extends State<HomePage> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+            if (goal['is_need'] != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(goal['is_need'] == true || goal['is_need'] == 1 ? Icons.check_circle_outline : Icons.favorite_border, size: 10, color: DesignSystem.gray),
+                  const SizedBox(width: 4),
+                  Text(goal['is_need'] == true || goal['is_need'] == 1 ? 'İhtiyaç' : 'İstek', style: DesignSystem.body(size: 9, color: DesignSystem.gray)),
+                ],
+              ),
+            ],
             const SizedBox(height: 6),
             // Thin progress bar at bottom
             ClipRRect(
@@ -2150,7 +2202,22 @@ class _HomePageState extends State<HomePage> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Expanded(
-                              child: Text(goal['title'], style: DesignSystem.heading(size: 22), maxLines: 2),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(goal['title'], style: DesignSystem.heading(size: 22), maxLines: 2),
+                                  if (goal['is_need'] != null) ...[
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Icon(goal['is_need'] == true || goal['is_need'] == 1 ? Icons.check_circle_outline : Icons.favorite_border, size: 14, color: DesignSystem.gray),
+                                        const SizedBox(width: 4),
+                                        Text(goal['is_need'] == true || goal['is_need'] == 1 ? 'İhtiyaç' : 'İstek', style: DesignSystem.body(size: 13, color: DesignSystem.gray)),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
                             IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
                           ],
@@ -2496,15 +2563,15 @@ class _HomePageState extends State<HomePage> {
                           Navigator.pop(ctx);
                           try {
                             await ApiService.fundGoalFromSaving(goal['id'], s['id']);
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('$desc hedefe uygulandı!'), backgroundColor: Colors.green),
-                              );
-                            }
+                              if (mounted) {
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  SnackBar(content: Text('$desc hedefe uygulandı!'), backgroundColor: Colors.green),
+                                );
+                              }
                             await _loadData();
                           } catch (e) {
                             if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              ScaffoldMessenger.of(this.context).showSnackBar(
                                 SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
                               );
                             }
@@ -2998,7 +3065,8 @@ class _HomePageState extends State<HomePage> {
         initialAmount: (goal['target_amount'] as num).toDouble(),
         initialColor: _colorMap[goal['color']] ?? Colors.purple,
         initialIcon: goal['icon'] ?? 'stars_rounded',
-        onSave: (newName, newAmount, newColor, newIcon) async {
+        initialIsNeed: goal['is_need'] ?? true,
+        onSave: (newName, newAmount, newColor, newIcon, newIsNeed) async {
           String colorString = 'purple';
           _colorMap.forEach((key, value) {
             if (value.value == newColor.value) colorString = key;
@@ -3010,6 +3078,7 @@ class _HomePageState extends State<HomePage> {
               'target_amount': newAmount,
               'color': colorString,
               'icon': newIcon,
+              'is_need': newIsNeed,
             });
             await _loadData();
           } catch (e) {
@@ -3061,13 +3130,15 @@ class _GoalCustomizeDialog extends StatefulWidget {
   final double initialAmount;
   final Color initialColor;
   final String initialIcon;
-  final Function(String, double, Color, String) onSave;
+  final bool initialIsNeed;
+  final Function(String, double, Color, String, bool) onSave;
 
   const _GoalCustomizeDialog({
     required this.initialName,
     required this.initialAmount,
     required this.initialColor,
     required this.initialIcon,
+    required this.initialIsNeed,
     required this.onSave,
   });
 
@@ -3080,10 +3151,13 @@ class _GoalCustomizeDialogState extends State<_GoalCustomizeDialog> {
   late TextEditingController amountController;
   late Color selectedColor;
   late String selectedIcon;
+  late bool isNeed;
 
   final List<Map<String, dynamic>> _goalIconOptions = [
     {'label': 'Genel', 'iconData': Icons.stars_rounded, 'key': 'stars_rounded'},
-    {'label': 'Ev', 'iconData': Icons.home_rounded, 'key': 'home_rounded'},
+    {'label': 'Oyun', 'iconData': Icons.sports_esports_rounded, 'key': 'sports_esports_rounded'},
+    {'label': 'Bisiklet', 'iconData': Icons.pedal_bike_rounded, 'key': 'pedal_bike_rounded'},
+    {'label': 'Kıyafet', 'iconData': Icons.checkroom_rounded, 'key': 'checkroom_rounded'},
     {'label': 'Araç', 'iconData': Icons.directions_car_rounded, 'key': 'directions_car_rounded'},
     {'label': 'Eğitim', 'iconData': Icons.school_rounded, 'key': 'school_rounded'},
     {'label': 'Tatil', 'iconData': Icons.flight_takeoff_rounded, 'key': 'flight_takeoff_rounded'},
@@ -3099,6 +3173,7 @@ class _GoalCustomizeDialogState extends State<_GoalCustomizeDialog> {
     );
     selectedColor = widget.initialColor;
     selectedIcon = widget.initialIcon;
+    isNeed = widget.initialIsNeed;
   }
 
   @override
@@ -3110,10 +3185,11 @@ class _GoalCustomizeDialogState extends State<_GoalCustomizeDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
         Text('Hedef Adı (Max 25 karakter)', style: DesignSystem.body(size: 14, color: DesignSystem.gray, weight: FontWeight.w600)),
         const SizedBox(height: 8),
         TextField(
@@ -3132,11 +3208,31 @@ class _GoalCustomizeDialogState extends State<_GoalCustomizeDialog> {
         TextField(
           controller: amountController,
           keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           style: DesignSystem.body(color: DesignSystem.black, weight: FontWeight.w600),
           decoration: InputDecoration(
             hintText: 'Tutar',
             prefixIcon: const Icon(Icons.money, color: DesignSystem.primaryIndigo),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text('Bu Hedef Türü Nedir?', style: DesignSystem.body(size: 14, color: DesignSystem.gray, weight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(value: true, label: Text('İhtiyaç'), icon: Icon(Icons.check_circle_outline, size: 18)),
+              ButtonSegment(value: false, label: Text('İstek'), icon: Icon(Icons.favorite_border, size: 18)),
+            ],
+            selected: {isNeed},
+            emptySelectionAllowed: false,
+            onSelectionChanged: (Set<bool> s) => setState(() => isNeed = s.first),
+            style: SegmentedButton.styleFrom(
+              selectedBackgroundColor: DesignSystem.primaryIndigo.withOpacity(0.1),
+              selectedForegroundColor: DesignSystem.primaryIndigo,
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -3194,10 +3290,9 @@ class _GoalCustomizeDialogState extends State<_GoalCustomizeDialog> {
             const SizedBox(width: 12),
             ElevatedButton(
               onPressed: () {
-                final newGoal = double.tryParse(amountController.text);
-                final newName = nameController.text.trim();
-                if (newGoal != null && newGoal > 0 && newName.isNotEmpty) {
-                  widget.onSave(newName, newGoal, selectedColor, selectedIcon);
+                final amt = double.tryParse(amountController.text);
+                if (nameController.text.isNotEmpty && amt != null && amt > 0) {
+                  widget.onSave(nameController.text.trim(), amt, selectedColor, selectedIcon, isNeed);
                   Navigator.pop(context);
                 }
               },
@@ -3212,8 +3307,9 @@ class _GoalCustomizeDialogState extends State<_GoalCustomizeDialog> {
           ],
         ),
       ],
-    );
-  }
+    ),
+  );
+}
 }
 
 class _ProgressRingPainter extends CustomPainter {

@@ -206,8 +206,8 @@ class ApiService {
     String? date,
     int? goalId,
     String category = 'Genel',
-    bool isRecurring = false,
     String currency = 'TRY',
+    bool isNeed = true,
   }) async {
     return await post('/api/transactions', {
       'description': description,
@@ -216,8 +216,8 @@ class ApiService {
       'date': date,
       'goal_id': goalId,
       'category': category,
-      'is_recurring': isRecurring,
       'currency': currency,
+      'is_need': isNeed,
     });
   }
 
@@ -242,6 +242,22 @@ class ApiService {
 
   static Future<void> deleteSaving(int id) async {
     return await delete('/api/savings/$id');
+  }
+
+  static Future<Map<String, dynamic>> getSavingsSummary() async {
+    return await get('/api/savings/summary');
+  }
+
+  static Future<Map<String, dynamic>> transferSaving({
+    required int fromSavingId,
+    required String toCurrency,
+    String? description,
+  }) async {
+    return await post('/api/savings/transfer', {
+      'from_saving_id': fromSavingId,
+      'to_currency': toCurrency,
+      if (description != null) 'description': description,
+    });
   }
 
   static Future<Map<String, dynamic>> updateTransaction(

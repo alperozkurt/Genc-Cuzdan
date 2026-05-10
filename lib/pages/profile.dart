@@ -5,11 +5,13 @@ class ProfilePage extends StatefulWidget {
   final Map<String, dynamic>? initialProfileData;
   final Function(Map<String, dynamic>) onProfileSaved;
   final VoidCallback onLogout;
+  final int completedGoalsCount;
 
   const ProfilePage({
     this.initialProfileData,
     required this.onProfileSaved,
     required this.onLogout,
+    this.completedGoalsCount = 0,
     super.key,
   });
 
@@ -145,6 +147,11 @@ class _ProfilePageState extends State<ProfilePage> {
           
           const SizedBox(height: 32),
 
+          // Gamification Badges Section
+          _buildBadgesSection(widget.completedGoalsCount),
+
+          const SizedBox(height: 32),
+
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -205,6 +212,99 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBadgesSection(int completedGoalsCount) {
+    final List<Map<String, dynamic>> badges = [
+      {'title': 'İlk Adım', 'threshold': 1, 'icon': Icons.star_outline_rounded},
+      {'title': 'İkili Zafer', 'threshold': 2, 'icon': Icons.two_wheeler_rounded},
+      {'title': 'Hedef Avcısı', 'threshold': 5, 'icon': Icons.track_changes_rounded},
+      {'title': 'Tasarruf Ustası', 'threshold': 10, 'icon': Icons.savings_rounded},
+      {'title': 'Kararlı B.', 'threshold': 15, 'icon': Icons.trending_up_rounded},
+      {'title': 'Finans Gurusu', 'threshold': 20, 'icon': Icons.psychology_rounded},
+      {'title': 'Hedef Canavarı', 'threshold': 25, 'icon': Icons.rocket_launch_rounded},
+      {'title': 'Yıldız Tasarrufçu', 'threshold': 30, 'icon': Icons.stars_rounded},
+      {'title': 'Zirve Maceracısı', 'threshold': 40, 'icon': Icons.landscape_rounded},
+      {'title': 'Efsanevi Bütçeci', 'threshold': 50, 'icon': Icons.workspace_premium_rounded},
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: DesignSystem.premiumCard(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.military_tech_rounded, size: 24, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text('Başarı Rozetleri', style: DesignSystem.subheading(size: 16)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tamamlanan hedeflerine göre açılan rozetler.',
+            style: DesignSystem.body(size: 13, color: DesignSystem.gray),
+          ),
+          const SizedBox(height: 24),
+          GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 16,
+              childAspectRatio: 0.8,
+            ),
+            itemCount: badges.length,
+            itemBuilder: (context, index) {
+              final badge = badges[index];
+              final bool isUnlocked = completedGoalsCount >= badge['threshold'];
+
+              return Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isUnlocked ? Colors.amber.withOpacity(0.15) : DesignSystem.lightGray,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isUnlocked ? Colors.amber : Colors.transparent,
+                        width: 2,
+                      ),
+                      boxShadow: isUnlocked
+                          ? [BoxShadow(color: Colors.amber.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))]
+                          : null,
+                    ),
+                    child: Icon(
+                      isUnlocked ? badge['icon'] : Icons.lock_rounded,
+                      size: 28,
+                      color: isUnlocked ? Colors.amber : DesignSystem.gray,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    badge['title'],
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    style: DesignSystem.body(
+                      size: 11,
+                      weight: isUnlocked ? FontWeight.w700 : FontWeight.w500,
+                      color: isUnlocked ? DesignSystem.black : DesignSystem.gray,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${badge['threshold']} Hedef',
+                    style: DesignSystem.body(size: 10, color: DesignSystem.gray),
+                  ),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );

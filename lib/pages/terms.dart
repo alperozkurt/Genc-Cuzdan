@@ -14,55 +14,45 @@ class _TermsPageState extends State<TermsPage> {
   @override
   Widget build(BuildContext context) {
     final Map<String, Map<String, String>> terms = {
-      'Hisse Senedi': {
-        'basic': 'Bir şirketin sahipliğinin küçük parçaları',
+      'Bütçe': {
+        'basic': 'Paranı nasıl harcayacağını ve biriktireceğini önceden planlamaktır.',
         'advanced':
-            'Bir şirketin öz sermayesinin menkul kıymetleştirilmiş pay sertifikaları. Hisse senetleri yatırımcılara şirkette mülkiyet ve oy hakkı sağlar.',
+            'Belirli bir dönem (haftalık/aylık) için öngörülen gelir ve giderlerin dengeli bir şekilde dağıtılmasını sağlayan finansal planlama aracıdır.',
       },
-      'Tahvil': {
-        'basic': 'Borç senetleri. İhraçcı borcu geri ödemeyi taahhüt eder',
+      'Gelir (Kazanç)': {
+        'basic': 'Cebine giren para. Harçlığın, bayram paran veya bir işten kazandığın paradır.',
         'advanced':
-            'Sabit getirili menkul kıymetler. İhraçcı (devlet veya şirket) belirli tarihlerde sabit faiz öder ve vade sonunda ana parayı geri ödemeyi taahhüt eder.',
+            'Bireyin belirli bir süre içinde elde ettiği toplam parasal değerdir. Düzenli ödenekler veya ticari kazançları kapsar.',
       },
-      'Portföy': {
-        'basic': 'Bir yatırımcının sahip olduğu tüm yatırımları bir arada',
+      'Gider (Harcama)': {
+        'basic': 'Cebinden çıkan para. Kantinden aldığın tost veya yeni bir oyun için ödediğin paradır.',
         'advanced':
-            'Çeşitli yatırım araçlarından oluşan varlık koleksiyonu. Etkin portföy yönetimi risk azaltma (diversifikasyon) ilkesini takip eder.',
+            'Kişisel ihtiyaçların karşılanması amacıyla yapılan mal ve hizmet ödemelerinin genel adıdır.',
       },
-      'Faiz Oranı': {
-        'basic': 'Borç para aldığında ödenen ek para miktarının yüzdesi',
+      'Birikim': {
+        'basic': 'Gelecekte kullanmak üzere sakladığın paradır. Kumbarana attığın paralar birikimdir.',
         'advanced':
-            'Borç verenlerin borç alanlara verdikleri fonlara uyguladığı getiri oranı. Merkez Bankası tarafından belirlenen temel faiz oranı ekonominin temelini oluştur.',
+            'Elde edilen gelirin harcanmayan ve gelecekteki hedefler veya beklenmedik durumlar için ayrılan kısmıdır.',
+      },
+      'İstek': {
+        'basic': 'Hayatta kalmak için şart olmayan ama sahip olmak istediğin şeyler (yeni bir oyun, oyuncak).',
+        'advanced':
+            'Temel yaşam gereksinimlerinin ötesinde, kişinin yaşam kalitesini artırmaya yönelik arzu ettiği ancak elzem olmayan şeylerdir.',
+      },
+      'İhtiyaç': {
+        'basic': 'Hayatta kalmak veya okula gitmek için kesinlikle gereken şeyler (yemek, su, kalem, defter).',
+        'advanced':
+            'Bireyin yaşamını sağlıklı sürdürebilmesi ve temel fonksiyonlarını yerine getirebilmesi için karşılanması zorunlu olan gereksinimlerdir.',
+      },
+      'Hedef': {
+        'basic': 'Almak istediğin büyük bir şey için ne kadar para biriktirmen gerektiğini belirlemektir.',
+        'advanced':
+            'Belirli bir zaman diliminde ulaşılması planlanan ve eldeki finansal kaynakların bu doğrultuda planlanmasını gerektiren ölçülebilir amaçtır.',
       },
       'Enflasyon': {
-        'basic': 'Zaman içinde ürün fiyatlarının artması',
+        'basic': 'Zaman içinde mağazalardaki ürünlerin fiyatlarının artması, paranla eskisinden daha az şey alabilmen.',
         'advanced':
-            'Bir ekonomide mal ve hizmetlerin genel fiyat seviyesinin zamanla artması. Satın alma gücünü azaltır ve reel getirileri etkiler.',
-      },
-      'Diversifikasyon': {
-        'basic': 'Parayla koyduğunuz farklı yatırım türleri',
-        'advanced':
-            'Yatırım portföyünü farklı varlık sınıflarına dağıtma stratejisi. Risk azaltmak ve potansiyel getiriyi optimize etmek için kullanılır.',
-      },
-      'Likidite': {
-        'basic': 'Yatırımı ne kadar hızlı nakit paraya çevirebileceğiniz',
-        'advanced':
-            'Varlığın hızlı ve etkisiz bir şekilde nakit paraya dönüştürülebilme kabiliyeti. Yüksek likidite hızlı işlem yapabilmeyi sağlar.',
-      },
-      'Risk Primi': {
-        'basic': 'Riskli yatırımdan daha yüksek bir getiri beklenmesi',
-        'advanced':
-            'Riskli varlık ile risksiz varlık arasındaki getiri farkı. Yatırımcıyı ek risk almaya teşvik etmek için prim sunulur.',
-      },
-      'Varlık Sınıfı': {
-        'basic': 'Aynı özelliğe sahip yatırımlar (hisse, tahvil, altın vb.)',
-        'advanced':
-            'Benzer ekonomik özellikler ve davranışları sergileyen menkul kıymetler grubu. Hisse senetleri, tahviller, emtialar, gayrimenkul ana varlık sınıflarıdır.',
-      },
-      'Volatilite': {
-        'basic': 'Yatırımın fiyatının ne kadar çabuk değiştiği',
-        'advanced':
-            'Varlığın fiyatının hareketlilik derecesi. Yüksek volatilite daha büyük fiyat dalgalanmalarını, dolayısıyla daha yüksek riski gösterir.',
+            'Bir ekonomide mal ve hizmetlerin genel fiyat seviyesinin zamanla artması. Bu durum paranın satın alma gücünü azaltır.',
       },
     };
 

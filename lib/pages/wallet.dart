@@ -225,7 +225,7 @@ class _WalletPageState extends State<WalletPage> {
                       children: [
                         Container(width: 8, height: 8,
                           decoration: BoxDecoration(
-                            color: meta['color'] as Color,
+                            color: curr == 'TRY' ? Colors.red : meta['color'] as Color,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -286,24 +286,8 @@ class _WalletPageState extends State<WalletPage> {
     double needsTotal = 0.0;
     double wantsTotal = 0.0;
 
-    for (var activity in widget.activities) {
-      if (activity['type'] == 'gider') {
-        final description = activity['description'] as String? ?? '';
-        // Skip transactions that are linked to a goal OR are explicit goal purchase transactions
-        // to avoid double counting with the goals loop below.
-        if (activity['goal_id'] == null && !description.startsWith('Satın Alma:')) {
-          final amount = (activity['amount'] as num).toDouble();
-          if (activity['is_need'] == true || activity['is_need'] == 1) {
-            needsTotal += amount;
-          } else {
-            wantsTotal += amount;
-          }
-        }
-      }
-    }
-
     for (var goal in widget.goals) {
-      // Use target_amount for all goals (active and completed) as requested
+      // Only include the target amount of the goals
       final amount = (goal['target_amount'] as num).toDouble();
       if (goal['is_need'] == true || goal['is_need'] == 1) {
         needsTotal += amount;
@@ -327,8 +311,8 @@ class _WalletPageState extends State<WalletPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('İhtiyaç ve İstek Analizi', style: DesignSystem.subheading(size: 14)),
-              Icon(Icons.pie_chart_outline_rounded, size: 18, color: DesignSystem.gray),
+              Text('Hedeflerin İhtiyaç ve İstek Analizi', style: DesignSystem.subheading(size: 14)),
+              Icon(Icons.bar_chart, size: 18, color: DesignSystem.gray),
             ],
           ),
           const SizedBox(height: 12),
@@ -385,20 +369,32 @@ class _WalletPageState extends State<WalletPage> {
         final bi = currencyOrder.indexOf(b['currency'] as String);
         return ai.compareTo(bi);
       });
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
-      child: SizedBox(
-        height: 8,
-        child: Row(
-          children: sorted.map((item) {
-            final tryVal = (item['total_try'] as num).toDouble();
-            final frac = grandTotal > 0 ? tryVal / grandTotal : 0.0;
-            final meta = _getCurrencyMeta(item['currency'] as String);
-            return Flexible(
-              flex: (frac * 1000).round(),
-              child: Container(color: meta['color'] as Color),
-            );
-          }).toList(),
+    return Container(
+      padding: const EdgeInsets.all(1.5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: SizedBox(
+          height: 10,
+          child: Row(
+            children: sorted.map((item) {
+              final tryVal = (item['total_try'] as num).toDouble();
+              final frac = grandTotal > 0 ? tryVal / grandTotal : 0.0;
+              final currency = item['currency'] as String;
+              final meta = _getCurrencyMeta(currency);
+              
+              // Use white for TRY in the breakdown bar for maximum visibility on indigo
+              final color = currency == 'TRY' ? Colors.red : meta['color'] as Color;
+              
+              return Flexible(
+                flex: (frac * 1000).round(),
+                child: Container(color: color),
+              );
+            }).toList(),
+          ),
         ),
       ),
     );
@@ -896,9 +892,9 @@ class _WalletPageState extends State<WalletPage> {
   // Currency metadata helper (reused in multiple places)
   Map<String, dynamic> _getCurrencyMeta(String currency) {
     switch (currency) {
-      case 'USD': return {'icon': Icons.attach_money, 'color': const Color(0xFF27AE60), 'symbol': '\$', 'label': 'Amerikan Doları'};
-      case 'EUR': return {'icon': Icons.euro, 'color': const Color(0xFF2980B9), 'symbol': '€', 'label': 'Euro'};
-      case 'GOLD': return {'icon': Icons.diamond, 'color': const Color(0xFFF39C12), 'symbol': 'gr', 'label': 'Gram Altın'};
+      case 'USD': return {'icon': Icons.attach_money, 'color': DesignSystem.secondaryGreen, 'symbol': '\$', 'label': 'Amerikan Doları'};
+      case 'EUR': return {'icon': Icons.euro, 'color': const Color(0xFF0EA5E9), 'symbol': '€', 'label': 'Euro'};
+      case 'GOLD': return {'icon': Icons.diamond, 'color': DesignSystem.warningOrange, 'symbol': 'gr', 'label': 'Gram Altın'};
       default:     return {'icon': Icons.currency_lira, 'color': DesignSystem.primaryIndigo, 'symbol': '₺', 'label': 'Türk Lirası'};
     }
   }
@@ -1275,9 +1271,9 @@ class _WalletPageState extends State<WalletPage> {
     // Currency metadata for chip display
     final currencies = [
       {'key': 'TRY', 'label': 'Türk Lirası', 'symbol': '₺', 'icon': Icons.currency_lira, 'color': DesignSystem.primaryIndigo},
-      {'key': 'USD', 'label': 'Dolar', 'symbol': '\$', 'icon': Icons.attach_money, 'color': const Color(0xFF27AE60)},
-      {'key': 'EUR', 'label': 'Euro', 'symbol': '€', 'icon': Icons.euro, 'color': const Color(0xFF2980B9)},
-      {'key': 'GOLD', 'label': 'Gram Altın', 'symbol': 'gr', 'icon': Icons.diamond, 'color': const Color(0xFFF39C12)},
+      {'key': 'USD', 'label': 'Dolar', 'symbol': '\$', 'icon': Icons.attach_money, 'color': DesignSystem.secondaryGreen},
+      {'key': 'EUR', 'label': 'Euro', 'symbol': '€', 'icon': Icons.euro, 'color': const Color(0xFF0EA5E9)},
+      {'key': 'GOLD', 'label': 'Gram Altın', 'symbol': 'gr', 'icon': Icons.diamond, 'color': DesignSystem.warningOrange},
     ];
 
     showModalBottomSheet(

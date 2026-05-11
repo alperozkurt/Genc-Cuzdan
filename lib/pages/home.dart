@@ -103,7 +103,6 @@ class _HomePageState extends State<HomePage> {
   final List<Map<String, dynamic>> _goalIconOptions = [
     {'label': 'Genel', 'iconData': Icons.stars_rounded, 'key': 'stars_rounded'},
     {'label': 'Oyun', 'iconData': Icons.sports_esports_rounded, 'key': 'sports_esports_rounded'},
-    {'label': 'Bisiklet', 'iconData': Icons.pedal_bike_rounded, 'key': 'pedal_bike_rounded'},
     {'label': 'Kıyafet', 'iconData': Icons.checkroom_rounded, 'key': 'checkroom_rounded'},
     {'label': 'Araç', 'iconData': Icons.directions_car_rounded, 'key': 'directions_car_rounded'},
     {'label': 'Eğitim', 'iconData': Icons.school_rounded, 'key': 'school_rounded'},
@@ -552,7 +551,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(width: 10),
               Expanded(
                 child: _buildActionCard(
-                  title: 'Hızlı Gider',
+                  title: 'Kayıtlı Gider',
                   icon: Icons.flash_on_rounded,
                   color: DesignSystem.warningOrange,
                   onTap: _showQuickAddDialog,
@@ -1061,27 +1060,6 @@ class _HomePageState extends State<HomePage> {
                             accentColor: accentColor,
                           ),
                           const SizedBox(height: 8),
-                          if (!isGelir) ...[
-                            Text('Bu Harcama Türü Nedir?', style: DesignSystem.body(weight: FontWeight.w600)),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              child: SegmentedButton<bool>(
-                                segments: const [
-                                  ButtonSegment(value: true, label: Text('İhtiyaç'), icon: Icon(Icons.check_circle_outline, size: 18)),
-                                  ButtonSegment(value: false, label: Text('İstek'), icon: Icon(Icons.favorite_border, size: 18)),
-                                ],
-                                selected: {isNeed},
-                                emptySelectionAllowed: false,
-                                onSelectionChanged: (Set<bool> s) => setSheetState(() => isNeed = s.first),
-                                style: SegmentedButton.styleFrom(
-                                  selectedBackgroundColor: DesignSystem.primaryIndigo.withOpacity(0.1),
-                                  selectedForegroundColor: DesignSystem.primaryIndigo,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                          ],
                          ],
                        ),
                      ),
@@ -3156,7 +3134,6 @@ class _GoalCustomizeDialogState extends State<_GoalCustomizeDialog> {
   final List<Map<String, dynamic>> _goalIconOptions = [
     {'label': 'Genel', 'iconData': Icons.stars_rounded, 'key': 'stars_rounded'},
     {'label': 'Oyun', 'iconData': Icons.sports_esports_rounded, 'key': 'sports_esports_rounded'},
-    {'label': 'Bisiklet', 'iconData': Icons.pedal_bike_rounded, 'key': 'pedal_bike_rounded'},
     {'label': 'Kıyafet', 'iconData': Icons.checkroom_rounded, 'key': 'checkroom_rounded'},
     {'label': 'Araç', 'iconData': Icons.directions_car_rounded, 'key': 'directions_car_rounded'},
     {'label': 'Eğitim', 'iconData': Icons.school_rounded, 'key': 'school_rounded'},

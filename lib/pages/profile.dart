@@ -221,14 +221,13 @@ class _ProfilePageState extends State<ProfilePage> {
     final List<Map<String, dynamic>> badges = [
       {'title': 'İlk Adım', 'threshold': 1, 'icon': Icons.star_outline_rounded},
       {'title': 'İkili Zafer', 'threshold': 2, 'icon': Icons.two_wheeler_rounded},
-      {'title': 'Hedef Avcısı', 'threshold': 5, 'icon': Icons.track_changes_rounded},
-      {'title': 'Tasarruf Ustası', 'threshold': 10, 'icon': Icons.savings_rounded},
-      {'title': 'Kararlı B.', 'threshold': 15, 'icon': Icons.trending_up_rounded},
-      {'title': 'Finans Gurusu', 'threshold': 20, 'icon': Icons.psychology_rounded},
-      {'title': 'Hedef Canavarı', 'threshold': 25, 'icon': Icons.rocket_launch_rounded},
-      {'title': 'Yıldız Tasarrufçu', 'threshold': 30, 'icon': Icons.stars_rounded},
-      {'title': 'Zirve Maceracısı', 'threshold': 40, 'icon': Icons.landscape_rounded},
-      {'title': 'Efsanevi Bütçeci', 'threshold': 50, 'icon': Icons.workspace_premium_rounded},
+      {'title': 'Hedef Avcısı', 'threshold': 3, 'icon': Icons.track_changes_rounded},
+      {'title': 'Tasarruf Ustası', 'threshold': 5, 'icon': Icons.savings_rounded},
+      {'title': 'Kararlı Birikimci', 'threshold': 10, 'icon': Icons.trending_up_rounded},
+      {'title': 'Finans Gurusu', 'threshold': 15, 'icon': Icons.psychology_rounded},
+      {'title': 'Hedef Canavarı', 'threshold': 20, 'icon': Icons.rocket_launch_rounded},
+      {'title': 'Yıldız Tasarrufçu', 'threshold': 25, 'icon': Icons.stars_rounded},
+      {'title': 'Efsanevi Bütçeci', 'threshold': 30, 'icon': Icons.workspace_premium_rounded},  
     ];
 
     return Container(

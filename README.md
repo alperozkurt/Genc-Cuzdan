@@ -22,6 +22,22 @@ The goal is not advanced finance management. The goal is habit formation.
 
 ---
 
+## Screenshots
+
+### Main Page
+
+![Main](screenshots/Main_goal.png)
+
+### Wallet
+
+![Wallet](screenshots/Wallet_dashboard.png)
+
+### Profile
+
+![Profile](screenshots/Profile_badges.png)
+
+---
+
 ## Core Features
 
 ### Financial Tracking

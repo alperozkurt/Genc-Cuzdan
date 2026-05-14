@@ -26,15 +26,15 @@ The goal is not advanced finance management. The goal is habit formation.
 
 ### Main Page
 
-![Main](Screenshots/Main_goal.png)
+![Main](Screenshots/Main_goal.jpg)
 
 ### Wallet
 
-![Wallet](Screenshots/Wallet_dashboard.png)
+![Wallet](Screenshots/Wallet_dashboard.jpg)
 
 ### Profile
 
-![Profile](Screenshots/Profile_badges.png)
+![Profile](Screenshots/Profile_badges.jpg)
 
 ---
 

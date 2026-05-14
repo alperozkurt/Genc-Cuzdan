@@ -22,6 +22,22 @@ The goal is not advanced finance management. The goal is habit formation.
 
 ---
 
+## Screenshots
+
+### Main Page
+
+![Main](Screenshots/Main_goal.jpg)
+
+### Wallet
+
+![Wallet](Screenshots/Wallet_dashboard.jpg)
+
+### Profile
+
+![Profile](Screenshots/Profile_badges.jpg)
+
+---
+
 ## Core Features
 
 ### Financial Tracking
@@ -68,6 +84,8 @@ The goal is not advanced finance management. The goal is habit formation.
 Chosen for single-codebase deployment on both Android and iOS. Flutter enables responsive UI rendering and smooth visual interactions.
 
 ### Backend
+
+You can visit https://github.com/alperozkurt/backend to view the backend source code
 
 - FastAPI
 - Python

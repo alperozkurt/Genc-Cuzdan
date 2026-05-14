@@ -85,6 +85,8 @@ Chosen for single-codebase deployment on both Android and iOS. Flutter enables r
 
 ### Backend
 
+You can visit https://github.com/alperozkurt/backend to view the backend source code
+
 - FastAPI
 - Python
 - Pydantic

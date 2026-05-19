@@ -353,11 +353,6 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: DesignSystem.background,
-      appBar: AppBar(
-        backgroundColor: DesignSystem.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: DesignSystem.black),
-      ),
       body: Stack(
         children: [
           _isLoading
@@ -391,12 +386,12 @@ class _HomePageState extends State<HomePage> {
             label: 'Cüzdan',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.book_rounded),
-            label: 'Terimler',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.auto_awesome_rounded),
             label: 'AI Asistan',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.book_rounded),
+            label: 'Terimler',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_3_rounded),
@@ -447,9 +442,9 @@ class _HomePageState extends State<HomePage> {
           onRetakeInvestmentTest: _startInvestmentTest,
         );
       case 2:
-        return const TermsPage();
-      case 3:
         return const AiChatPage();
+      case 3:
+        return const TermsPage();
       case 4:
         return ProfilePage(
           completedGoalsCount: goals.where((g) => g['is_completed'] == true || g['is_completed'] == 1).length,

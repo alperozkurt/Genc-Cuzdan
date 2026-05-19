@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../theme/design_system.dart';
 
 class AiChatPage extends StatefulWidget {
@@ -8,15 +10,15 @@ class AiChatPage extends StatefulWidget {
   State<AiChatPage> createState() => _AiChatPageState();
 }
 
-class _AiChatPageState extends State<AiChatPage>
-    with TickerProviderStateMixin {
+class _AiChatPageState extends State<AiChatPage> with TickerProviderStateMixin {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
   final List<_ChatMessage> _messages = [];
   bool _isTyping = false;
 
-  // Suggestion chips shown initially
+  static const String _prefsKey = 'ai_chat_history';
+
   static const List<String> _suggestions = [
     '💡 Tasarruf nasıl yapılır?',
     '📈 Enflasyondan nasıl korunurum?',
@@ -26,7 +28,6 @@ class _AiChatPageState extends State<AiChatPage>
     '🎯 Finansal hedef nasıl belirlenir?',
   ];
 
-  // Simple rule-based chatbot (replace with real LLM call when available)
   static final List<_QA> _knowledgeBase = [
     _QA(
       keywords: ['tasarruf', 'biriktir', 'birikiyor', 'birikim'],
@@ -49,25 +50,25 @@ class _AiChatPageState extends State<AiChatPage>
           'GençCüzdan döviz kurlarını anlık takip etmenizi sağlar! 💹',
     ),
     _QA(
-      keywords: ['kredi kartı', 'borç', 'taksit', 'faiz'],
+      keywords: ['kredi kartı', 'borç', 'taksit'],
       answer:
           '💳 **Kredi kartı borcunu yönetme:**\n\n'
-          '• Her ay **minimum ödeme** değil, **tam borcu** ödemeye çalışın; aksi hâlde yüksek faiz birikir.\n'
+          '• Her ay **minimum ödeme** değil, **tam borcu** ödemeye çalışın.\n'
           '• Birden fazla kartınız varsa **en yüksek faizliden** başlayarak kapatın (Çığ Yöntemi).\n'
           '• Harcama limitinizi gelirinizin **%30**\'u ile sınırlı tutun.\n'
-          '• Taksitli alışverişlerde toplam maliyeti hesaplayın; faiz eklenince ne kadar fazla ödediğinizi görün.\n\n'
+          '• Taksitli alışverişlerde toplam maliyeti hesaplayın.\n\n'
           'GençCüzdan\'da harcamalarınızı kategorilere göre takip edin! 📊',
     ),
     _QA(
-      keywords: ['yatırım', 'yatırım araçları', 'nereye yatırım', 'portföy'],
+      keywords: ['yatırım', 'portföy', 'nereye yatırım'],
       answer:
           '🏦 **Temel yatırım araçları:**\n\n'
           '• **Mevduat / Vadeli Hesap** — Düşük risk, belirli getiri.\n'
           '• **Devlet Tahvili / Bono** — Güvenli, sabit getiri.\n'
-          '• **Hisse Senedi** — Yüksek potansiyel, yüksek risk; uzun vadeli düşünün.\n'
+          '• **Hisse Senedi** — Yüksek potansiyel, yüksek risk.\n'
           '• **Altın** — Enflasyona karşı güvenli liman.\n'
-          '• **Kripto Para** — Çok yüksek risk; sadece kaybetmeyi göze aldığınız miktarla girin.\n\n'
-          '⚠️ Yatırım kararları almadan önce lisanslı bir finansal danışmana başvurmanızı öneririz.',
+          '• **Kripto Para** — Çok yüksek risk; dikkatli olun.\n\n'
+          '⚠️ Yatırım kararları almadan önce lisanslı bir finansal danışmana başvurun.',
     ),
     _QA(
       keywords: ['bütçe', 'plan', 'planlama', 'harcama planı'],
@@ -76,29 +77,26 @@ class _AiChatPageState extends State<AiChatPage>
           '• **%50** → İhtiyaçlar (kira, fatura, market)\n'
           '• **%30** → İstekler (eğlence, restoran, alışveriş)\n'
           '• **%20** → Tasarruf ve borç ödemesi\n\n'
-          'Bu kuralı uygulamak için:\n'
-          '1. Aylık net gelirinizi hesaplayın.\n'
-          '2. Her kategoriye düşen tutarı belirleyin.\n'
-          '3. GençCüzdan\'a gelir/gider girerek takip edin! 🎯',
+          'GençCüzdan\'a gelir/gider girerek takip edin! 🎯',
     ),
     _QA(
-      keywords: ['hedef', 'hedefe', 'hedef belirle', 'nasıl hedef'],
+      keywords: ['hedef', 'hedef belirle', 'nasıl hedef'],
       answer:
           '🎯 **SMART Hedef belirleme:**\n\n'
-          '• **S**pecific (Özgün): "Para biriktireceğim" değil, "6 ayda 5.000 ₺ biriktireceğim".\n'
-          '• **M**easurable (Ölçülebilir): İlerlemeyi sayılarla takip edin.\n'
-          '• **A**chievable (Ulaşılabilir): Aylık gelirinize göre gerçekçi bir hedef seçin.\n'
-          '• **R**elevant (Anlamlı): Size özel bir motivasyon seçin.\n'
-          '• **T**ime-bound (Zamanlı): Kesin bir bitiş tarihi koyun.\n\n'
-          'GençCüzdan\'daki **Hedefler** sekmesinde hemen bir hedef oluşturun! 🚀',
+          '• **S**pecific: "6 ayda 5.000 ₺ biriktireceğim".\n'
+          '• **M**easurable: İlerlemeyi sayılarla takip edin.\n'
+          '• **A**chievable: Gelirinize göre gerçekçi seçin.\n'
+          '• **R**elevant: Size özel bir motivasyon seçin.\n'
+          '• **T**ime-bound: Kesin bir bitiş tarihi koyun.\n\n'
+          'GençCüzdan\'daki **Hedefler** sekmesinde hemen başlayın! 🚀',
     ),
     _QA(
-      keywords: ['faiz', 'faiz nedir', 'bileşik faiz'],
+      keywords: ['faiz', 'bileşik faiz'],
       answer:
           '🔢 **Faiz ve Bileşik Faiz:**\n\n'
           '**Basit faiz:** Ana para × Faiz oranı × Süre\n'
-          '**Bileşik faiz:** Kazandığınız faiz de faiz kazanır — zamanla kartopu etkisi yaratır.\n\n'
-          '💡 Örnek: 10.000 ₺\'yi %10 yıllık bileşik faizle 10 yıl tutarsanız ~**25.937 ₺** olur.\n\n'
+          '**Bileşik faiz:** Kazandığınız faiz de faiz kazanır — kartopu etkisi!\n\n'
+          '💡 10.000 ₺\'yi %10 yıllık bileşik faizle 10 yıl tutarsanız ~**25.937 ₺** olur.\n\n'
           'Bu yüzden erken yaşta tasarrufa başlamak kritik öneme sahiptir!',
     ),
     _QA(
@@ -115,38 +113,75 @@ class _AiChatPageState extends State<AiChatPage>
     ),
   ];
 
+  static const _welcomeText =
+      '👋 Merhaba! Ben **Finans Asistanın**.\n\n'
+      'Finansal sorularınızı yanıtlamak, bütçe planlamanıza yardımcı olmak ve para yönetimi konusunda rehberlik etmek için buradayım.\n\n'
+      'Aşağıdaki konulardan birini seçebilir veya kendi sorunuzu yazabilirsiniz! 💬';
+
   @override
   void initState() {
     super.initState();
-    // Welcome message
-    _messages.add(_ChatMessage(
-      text:
-          '👋 Merhaba! Ben **Finans Asistanın**.\n\n'
-          'Finansal sorularınızı yanıtlamak, bütçe planlamanıza yardımcı olmak ve para yönetimi konusunda rehberlik etmek için buradayım.\n\n'
-          'Aşağıdaki konulardan birini seçebilir veya kendi sorunuzu yazabilirsiniz! 💬',
-      isUser: false,
-      timestamp: DateTime.now(),
-    ));
+    _loadHistory();
   }
 
-  @override
-  void dispose() {
-    _inputController.dispose();
-    _scrollController.dispose();
-    super.dispose();
+  // ── Persistence ─────────────────────────────────────────────────────────
+
+  Future<void> _loadHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_prefsKey);
+    if (raw != null) {
+      final list = json.decode(raw) as List<dynamic>;
+      setState(() {
+        _messages.addAll(list.map((e) => _ChatMessage.fromJson(e)));
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    } else {
+      // First launch — show welcome
+      setState(() {
+        _messages.add(_ChatMessage(
+          text: _welcomeText,
+          isUser: false,
+          timestamp: DateTime.now(),
+        ));
+      });
+      _saveHistory();
+    }
   }
+
+  Future<void> _saveHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _prefsKey,
+      json.encode(_messages.map((m) => m.toJson()).toList()),
+    );
+  }
+
+  Future<void> _clearHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsKey);
+    setState(() {
+      _messages.clear();
+      _messages.add(_ChatMessage(
+        text: _welcomeText,
+        isUser: false,
+        timestamp: DateTime.now(),
+      ));
+    });
+    _saveHistory();
+  }
+
+  // ── Logic ───────────────────────────────────────────────────────────────
+
+  bool get _showSuggestions =>
+      _messages.length == 1 && !_messages.first.isUser;
 
   String _generateResponse(String userInput) {
     final lower = userInput.toLowerCase();
-
     for (final qa in _knowledgeBase) {
       for (final kw in qa.keywords) {
-        if (lower.contains(kw)) {
-          return qa.answer;
-        }
+        if (lower.contains(kw)) return qa.answer;
       }
     }
-
     return '🤔 Bu konuda size daha spesifik bir yanıt verebilmem için sorunuzu biraz daha açabilir misiniz?\n\n'
         'Şu konularda yardımcı olabilirim:\n'
         '• Tasarruf ve birikim\n'
@@ -159,33 +194,25 @@ class _AiChatPageState extends State<AiChatPage>
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
-    final userMsg = _ChatMessage(
-      text: text.trim(),
-      isUser: true,
-      timestamp: DateTime.now(),
-    );
-
     setState(() {
-      _messages.add(userMsg);
+      _messages.add(_ChatMessage(
+          text: text.trim(), isUser: true, timestamp: DateTime.now()));
       _isTyping = true;
     });
     _inputController.clear();
     _scrollToBottom();
 
-    // Simulate AI "thinking"
     await Future.delayed(const Duration(milliseconds: 900));
-
-    final response = _generateResponse(text);
 
     setState(() {
       _isTyping = false;
       _messages.add(_ChatMessage(
-        text: response,
-        isUser: false,
-        timestamp: DateTime.now(),
-      ));
+          text: _generateResponse(text),
+          isUser: false,
+          timestamp: DateTime.now()));
     });
 
+    _saveHistory();
     _scrollToBottom();
   }
 
@@ -201,40 +228,37 @@ class _AiChatPageState extends State<AiChatPage>
     });
   }
 
+  // ── Build ────────────────────────────────────────────────────────────────
+
+  @override
+  void dispose() {
+    _inputController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Header
         _buildHeader(),
-
-        // Messages list
         Expanded(
           child: ListView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            itemCount:
-                _messages.length + (_isTyping ? 1 : 0) + (_messages.length == 1 ? 1 : 0),
+            itemCount: _messages.length +
+                (_isTyping ? 1 : 0) +
+                (_showSuggestions ? 1 : 0),
             itemBuilder: (context, index) {
-              // Suggestion chips after welcome message
-              if (_messages.length == 1 && index == 1) {
+              if (_showSuggestions && index == 1) {
                 return _buildSuggestionChips();
               }
-
-              final msgIndex = (_messages.length == 1 && index > 1)
-                  ? index - 1
-                  : index;
-
-              if (msgIndex == _messages.length) {
-                return _buildTypingIndicator();
-              }
-
+              final msgIndex = (_showSuggestions && index > 1) ? index - 1 : index;
+              if (msgIndex == _messages.length) return _buildTypingIndicator();
               return _buildMessageBubble(_messages[msgIndex]);
             },
           ),
         ),
-
-        // Input bar
         _buildInputBar(),
       ],
     );
@@ -298,14 +322,49 @@ class _AiChatPageState extends State<AiChatPage>
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: DesignSystem.lightGray,
-              borderRadius: BorderRadius.circular(12),
+          // Clear chat button
+          GestureDetector(
+            onTap: () => showDialog(
+              context: context,
+              builder: (_) => AlertDialog(
+                backgroundColor: DesignSystem.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24)),
+                title: Text('Sohbeti Temizle',
+                    style: DesignSystem.subheading(size: 18)),
+                content: Text(
+                    'Tüm sohbet geçmişi silinecek. Emin misiniz?',
+                    style: DesignSystem.body()),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('İptal',
+                        style: DesignSystem.body(
+                            color: DesignSystem.gray,
+                            weight: FontWeight.w600)),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _clearHistory();
+                    },
+                    child: Text('Temizle',
+                        style: DesignSystem.body(
+                            color: DesignSystem.accentCoral,
+                            weight: FontWeight.w700)),
+                  ),
+                ],
+              ),
             ),
-            child: const Icon(Icons.info_outline_rounded,
-                color: DesignSystem.gray, size: 18),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: DesignSystem.lightGray,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.delete_sweep_rounded,
+                  color: DesignSystem.gray, size: 18),
+            ),
           ),
         ],
       ),
@@ -320,20 +379,16 @@ class _AiChatPageState extends State<AiChatPage>
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 10),
-            child: Text(
-              'Önerilen Sorular',
-              style: DesignSystem.body(
-                  size: 12,
-                  color: DesignSystem.gray,
-                  weight: FontWeight.w600),
-            ),
+            child: Text('Önerilen Sorular',
+                style: DesignSystem.body(
+                    size: 12,
+                    color: DesignSystem.gray,
+                    weight: FontWeight.w600)),
           ),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _suggestions
-                .map((s) => _buildChip(s))
-                .toList(),
+            children: _suggestions.map(_buildChip).toList(),
           ),
         ],
       ),
@@ -343,8 +398,7 @@ class _AiChatPageState extends State<AiChatPage>
   Widget _buildChip(String label) {
     return GestureDetector(
       onTap: () => _sendMessage(label),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+      child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: DesignSystem.primaryIndigo.withOpacity(0.07),
@@ -352,20 +406,17 @@ class _AiChatPageState extends State<AiChatPage>
           border: Border.all(
               color: DesignSystem.primaryIndigo.withOpacity(0.2), width: 1),
         ),
-        child: Text(
-          label,
-          style: DesignSystem.body(
-              size: 13,
-              color: DesignSystem.primaryIndigo,
-              weight: FontWeight.w600),
-        ),
+        child: Text(label,
+            style: DesignSystem.body(
+                size: 13,
+                color: DesignSystem.primaryIndigo,
+                weight: FontWeight.w600)),
       ),
     );
   }
 
   Widget _buildMessageBubble(_ChatMessage message) {
     final isUser = message.isUser;
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -390,11 +441,13 @@ class _AiChatPageState extends State<AiChatPage>
           ],
           Flexible(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.75),
               decoration: BoxDecoration(
-                color: isUser ? DesignSystem.primaryIndigo : DesignSystem.white,
+                color:
+                    isUser ? DesignSystem.primaryIndigo : DesignSystem.white,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(20),
                   topRight: const Radius.circular(20),
@@ -430,39 +483,29 @@ class _AiChatPageState extends State<AiChatPage>
     );
   }
 
-  /// Renders a simplified bold markdown (text between ** **) in the chat bubble.
   Widget _buildRichText(String text, {required bool isUser}) {
     final baseColor = isUser ? Colors.white : DesignSystem.black;
-    final dimColor = isUser ? Colors.white70 : DesignSystem.gray;
     final spans = <InlineSpan>[];
     final regex = RegExp(r'\*\*(.+?)\*\*');
     int lastEnd = 0;
-
     for (final match in regex.allMatches(text)) {
       if (match.start > lastEnd) {
         spans.add(TextSpan(
-          text: text.substring(lastEnd, match.start),
-          style: DesignSystem.body(size: 14, color: baseColor),
-        ));
+            text: text.substring(lastEnd, match.start),
+            style: DesignSystem.body(size: 14, color: baseColor)));
       }
       spans.add(TextSpan(
-        text: match.group(1),
-        style: DesignSystem.body(
-            size: 14, color: baseColor, weight: FontWeight.w700),
-      ));
+          text: match.group(1),
+          style: DesignSystem.body(
+              size: 14, color: baseColor, weight: FontWeight.w700)));
       lastEnd = match.end;
     }
-
     if (lastEnd < text.length) {
       spans.add(TextSpan(
-        text: text.substring(lastEnd),
-        style: DesignSystem.body(size: 14, color: baseColor),
-      ));
+          text: text.substring(lastEnd),
+          style: DesignSystem.body(size: 14, color: baseColor)));
     }
-
-    return RichText(
-      text: TextSpan(children: spans),
-    );
+    return RichText(text: TextSpan(children: spans));
   }
 
   Widget _buildTypingIndicator() {
@@ -551,8 +594,7 @@ class _AiChatPageState extends State<AiChatPage>
           const SizedBox(width: 10),
           GestureDetector(
             onTap: () => _sendMessage(_inputController.text),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
+            child: Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
@@ -580,18 +622,27 @@ class _AiChatPageState extends State<AiChatPage>
   }
 }
 
-// ── Data models ────────────────────────────────────────────────────────────
+// ── Data models ─────────────────────────────────────────────────────────────
 
 class _ChatMessage {
   final String text;
   final bool isUser;
   final DateTime timestamp;
 
-  _ChatMessage({
-    required this.text,
-    required this.isUser,
-    required this.timestamp,
-  });
+  _ChatMessage(
+      {required this.text, required this.isUser, required this.timestamp});
+
+  factory _ChatMessage.fromJson(Map<String, dynamic> j) => _ChatMessage(
+        text: j['text'] as String,
+        isUser: j['isUser'] as bool,
+        timestamp: DateTime.parse(j['timestamp'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'text': text,
+        'isUser': isUser,
+        'timestamp': timestamp.toIso8601String(),
+      };
 }
 
 class _QA {
@@ -600,15 +651,14 @@ class _QA {
   const _QA({required this.keywords, required this.answer});
 }
 
-// ── Typing animation ───────────────────────────────────────────────────────
+// ── Typing animation ─────────────────────────────────────────────────────────
 
 class _TypingDots extends StatefulWidget {
   @override
   State<_TypingDots> createState() => _TypingDotsState();
 }
 
-class _TypingDotsState extends State<_TypingDots>
-    with TickerProviderStateMixin {
+class _TypingDotsState extends State<_TypingDots> with TickerProviderStateMixin {
   late List<AnimationController> _controllers;
   late List<Animation<double>> _animations;
 
@@ -618,15 +668,12 @@ class _TypingDotsState extends State<_TypingDots>
     _controllers = List.generate(
       3,
       (i) => AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 500),
-      )..repeat(reverse: true),
+          vsync: this, duration: const Duration(milliseconds: 500))
+        ..repeat(reverse: true),
     );
-    _animations = _controllers.asMap().entries.map((e) {
-      return CurvedAnimation(parent: e.value, curve: Curves.easeInOut);
-    }).toList();
-
-    // Stagger start
+    _animations = _controllers
+        .map((c) => CurvedAnimation(parent: c, curve: Curves.easeInOut))
+        .toList();
     for (int i = 0; i < 3; i++) {
       Future.delayed(Duration(milliseconds: i * 150), () {
         if (mounted) _controllers[i].repeat(reverse: true);
@@ -636,9 +683,7 @@ class _TypingDotsState extends State<_TypingDots>
 
   @override
   void dispose() {
-    for (final c in _controllers) {
-      c.dispose();
-    }
+    for (final c in _controllers) c.dispose();
     super.dispose();
   }
 

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'terms.dart';
 import 'wallet.dart';
+import 'ai_chat.dart';
 import 'profile.dart';
 import '../services/api_service.dart';
 import '../services/market_service.dart';
@@ -353,10 +354,6 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: DesignSystem.background,
       appBar: AppBar(
-        title: const Text(
-          'GençCüzdan',
-          style: TextStyle(color: DesignSystem.black, fontWeight: FontWeight.bold),
-        ),
         backgroundColor: DesignSystem.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: DesignSystem.black),
@@ -396,6 +393,10 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.book_rounded),
             label: 'Terimler',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.auto_awesome_rounded),
+            label: 'AI Asistan',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_3_rounded),
@@ -448,6 +449,8 @@ class _HomePageState extends State<HomePage> {
       case 2:
         return const TermsPage();
       case 3:
+        return const AiChatPage();
+      case 4:
         return ProfilePage(
           completedGoalsCount: goals.where((g) => g['is_completed'] == true || g['is_completed'] == 1).length,
           initialProfileData: {

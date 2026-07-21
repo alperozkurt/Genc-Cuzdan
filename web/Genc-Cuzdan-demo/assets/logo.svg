@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="logoBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#3730A3" />
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+    <filter id="subtleShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0F172A" flood-opacity="0.15" />
+    </filter>
+  </defs>
+  
+  <!-- Outer Rounded Container -->
+  <rect width="512" height="512" rx="140" fill="url(#logoBg)" />
+  
+  <!-- Card Floating out of Wallet -->
+  <rect x="136" y="100" width="240" height="150" rx="20" fill="url(#cardGrad)" transform="rotate(-6 256 175)" filter="url(#subtleShadow)" />
+  <rect x="160" y="130" width="48" height="36" rx="8" fill="#FEF3C7" opacity="0.8" transform="rotate(-6 256 175)" />
+  <circle cx="340" cy="200" r="16" fill="#FFFFFF" opacity="0.3" />
+
+  <!-- Main Wallet Body -->
+  <rect x="100" y="190" width="312" height="220" rx="36" fill="#FFFFFF" filter="url(#subtleShadow)" />
+  <path d="M100 240 C100 212 124 190 152 190 L360 190 C388 190 412 212 412 240 L412 260 L100 260 Z" fill="#EEF2FF" />
+
+  <!-- Wallet Clasp / Button -->
+  <path d="M340 270 C340 256 352 244 366 244 L412 244 L412 336 L366 336 C352 336 340 324 340 310 Z" fill="#4F46E5" />
+  <circle cx="372" cy="290" r="12" fill="#F59E0B" />
+</svg>

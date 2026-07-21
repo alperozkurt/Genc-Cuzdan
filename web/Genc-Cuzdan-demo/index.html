@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Genç Cüzdan — Web Demo</title>
-  <link rel="icon" type="image/png" href="../favicon.png"/>
+  <title>Genç Cüzdan — Bütçe ve Hedef Yönetimi</title>
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg"/>
+  <link rel="apple-touch-icon" href="assets/logo.svg"/>
+  <meta name="description" content="Genç Cüzdan - Akıllı bütçe, birikim ve finansal hedef yönetimi.">
+  <meta name="theme-color" content="#4F46E5">
   <link rel="stylesheet" href="styles.css">
   <!-- Canvas Confetti CDN -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
@@ -15,7 +18,7 @@
     <!-- Sidebar Navigation (Desktop) -->
     <aside class="sidebar">
       <div class="sidebar-logo" onclick="switchTab('home')" title="GençCüzdan">
-        <img src="assets/logo.png" alt="Genç Cüzdan Logo" style="width:100%; height:100%; object-fit:cover; border-radius:18px;">
+        <img src="assets/logo.svg" alt="Genç Cüzdan Logo">
       </div>
 
       <nav class="nav-items">
@@ -77,7 +80,7 @@
             <div class="heading heading-xl" id="home-welcome-name">Demo Kullanıcı</div>
           </div>
           <div class="user-badge-header" onclick="switchTab('profile')" style="cursor:pointer;">
-            <img src="assets/profile.png" alt="Profil Avatarı" class="user-avatar-small" style="object-fit:cover;">
+            <img src="assets/profile.svg" alt="Profil Avatarı" class="user-avatar-small">
             <span style="font-size:13px; font-weight:700; color:var(--black);">Hesabım</span>
           </div>
         </div>
@@ -311,9 +314,9 @@
       <!-- PAGE 5: PROFİL -->
       <section id="page-profile" class="page">
         <div class="profile-header">
-          <img id="profile-avatar-img" src="assets/profile.png" class="profile-avatar" alt="Profil Avatarı" style="object-fit:cover; padding:0; border:3px solid white;">
+          <img id="profile-avatar-img" src="assets/profile.svg" class="profile-avatar" alt="Profil Avatarı">
           <div class="subheading" style="font-size:22px;">Profil ve Başarılar</div>
-          <div style="font-size:13px; color:var(--gray); margin-top:4px;">GençCüzdan Web Demo Modu</div>
+          <div style="font-size:13px; color:var(--gray); margin-top:4px;">Hesap Özeti & Finansal Profil</div>
         </div>
 
         <!-- Account Info Form -->

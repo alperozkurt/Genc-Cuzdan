@@ -710,7 +710,7 @@ function renderProfile() {
   document.getElementById('profile-input-salary').value = state.user.salary || '';
   const avatarImg = document.getElementById('profile-avatar-img');
   if (avatarImg) {
-    avatarImg.src = 'assets/profile.png';
+    avatarImg.src = 'assets/profile.svg';
   }
 
   renderProfileBadges();

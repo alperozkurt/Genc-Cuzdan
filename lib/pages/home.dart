@@ -351,30 +351,122 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: DesignSystem.background,
-      body: Stack(
-        children: [
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _buildBody(),
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confettiController,
-              blastDirectionality: BlastDirectionality.explosive,
-              shouldLoop: false,
-              colors: const [
-                Colors.green,
-                Colors.blue,
-                Colors.pink,
-                Colors.orange,
-                Colors.purple
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWideScreen = screenWidth > 800;
+
+    final bodyContent = Stack(
+      children: [
+        _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _buildBody(),
+        Align(
+          alignment: Alignment.topCenter,
+          child: ConfettiWidget(
+            confettiController: _confettiController,
+            blastDirectionality: BlastDirectionality.explosive,
+            shouldLoop: false,
+            colors: const [
+              Colors.green,
+              Colors.blue,
+              Colors.pink,
+              Colors.orange,
+              Colors.purple
+            ],
+          ),
+        ),
+      ],
+    );
+
+    // Wide screen (web/tablet): use NavigationRail sidebar
+    if (isWideScreen) {
+      return Scaffold(
+        backgroundColor: DesignSystem.background,
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: _selectedIndex,
+              onDestinationSelected: (int index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+              labelType: NavigationRailLabelType.all,
+              backgroundColor: Colors.white,
+              selectedIconTheme: const IconThemeData(color: DesignSystem.primaryIndigo, size: 26),
+              unselectedIconTheme: IconThemeData(color: DesignSystem.gray.withOpacity(0.5), size: 24),
+              selectedLabelTextStyle: const TextStyle(
+                color: DesignSystem.primaryIndigo,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+              unselectedLabelTextStyle: TextStyle(
+                color: DesignSystem.gray.withOpacity(0.5),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+              leading: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [DesignSystem.primaryIndigo, DesignSystem.darkIndigo],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home_rounded),
+                  label: Text('Anasayfa'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.account_balance_wallet_outlined),
+                  selectedIcon: Icon(Icons.account_balance_wallet_rounded),
+                  label: Text('Cüzdan'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.auto_awesome_outlined),
+                  selectedIcon: Icon(Icons.auto_awesome_rounded),
+                  label: Text('AI Asistan'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.book_outlined),
+                  selectedIcon: Icon(Icons.book_rounded),
+                  label: Text('Terimler'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.person_3_outlined),
+                  selectedIcon: Icon(Icons.person_3_rounded),
+                  label: Text('Profil'),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
+            const VerticalDivider(thickness: 1, width: 1, color: Color(0xFFE2E8F0)),
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: bodyContent,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Narrow screen: use BottomNavigationBar
+    return Scaffold(
+      backgroundColor: DesignSystem.background,
+      body: bodyContent,
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -492,11 +584,15 @@ class _HomePageState extends State<HomePage> {
             }
           },
           onLogout: () async {
-            await ApiService.logout();
+            // In web demo mode, just reload the data instead of navigating to login
             if (mounted) {
-              Navigator.of(
-                context,
-              ).pushNamedAndRemoveUntil('/login', (route) => false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Demo hesabındasınız. Veriler sıfırlanıyor...'),
+                  backgroundColor: Color(0xFF6366F1),
+                ),
+              );
+              await _loadData();
             }
           },
         );

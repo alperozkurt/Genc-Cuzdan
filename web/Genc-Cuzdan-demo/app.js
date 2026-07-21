@@ -159,7 +159,11 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── LIVE RATES FETCHING ──
 async function initLiveRates() {
   try {
-    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+    // Bug #9 fix: abort if the request takes longer than 5 seconds
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch('https://open.er-api.com/v6/latest/USD', { signal: controller.signal });
+    clearTimeout(tid);
     if (res.ok) {
       const data = await res.json();
       if (data && data.rates && data.rates.TRY) {
@@ -370,7 +374,7 @@ function renderHomeRecentTransactions() {
         <div class="tx-cat">${tx.category} • ${tx.date}</div>
       </div>
       <div class="tx-amount">
-        <div class="tx-value ${tx.type}">${tx.type === 'gelir' ? '+' : '-'}${formatTry(tx.amount)}</div>
+        <div class="tx-value ${tx.type === 'gelir' ? 'income' : 'expense'}">${tx.type === 'gelir' ? '+' : '-'}${formatTry(tx.amount)}</div>
       </div>
     </div>
   `).join('');
@@ -891,6 +895,11 @@ function selectGoalIcon(el, icon) {
 }
 
 function openAddGoalModal() {
+  // Bug #8 fix: reset the icon picker state every time the modal opens
+  selectedGoalIcon = '🎯';
+  document.querySelectorAll('.icon-option').forEach(el => el.classList.remove('selected'));
+  const firstOption = document.querySelector('.icon-option');
+  if (firstOption) firstOption.classList.add('selected');
   openModal('modal-add-goal');
 }
 
@@ -933,10 +942,38 @@ function purchaseGoal(id) {
   const goal = state.goals.find(g => g.id === id);
   if (!goal) return;
 
+  // Bug #4 fix: require a savings asset to deduct from
+  if (state.savings.length === 0) {
+    showToast("Önce Cüzdan sekmesinden varlık ekleyin.", "⚠️");
+    return;
+  }
+
+  const savingsTotalTry = state.savings.reduce((sum, s) => sum + convertToTry(s.amount, s.currency), 0);
+  if (savingsTotalTry < goal.target_amount - 0.01) {
+    showToast("Yeterli varlık bakiyeniz yok!", "⚠️");
+    return;
+  }
+
+  // Deduct purchase amount from savings in order (largest first)
+  let remaining = goal.target_amount;
+  const sorted = [...state.savings].sort((a, b) => convertToTry(b.amount, b.currency) - convertToTry(a.amount, a.currency));
+  for (const s of sorted) {
+    if (remaining <= 0) break;
+    const tryVal = convertToTry(s.amount, s.currency);
+    if (tryVal <= remaining + 0.01) {
+      remaining -= tryVal;
+      state.savings = state.savings.filter(x => x.id !== s.id);
+    } else {
+      const leftTry = tryVal - remaining;
+      s.amount = Math.round(convertFromTry(leftTry, s.currency) * 10000) / 10000;
+      remaining = 0;
+    }
+  }
+
   goal.is_completed = true;
   goal.completed_at = getTodayStr();
 
-  // Add purchase expense
+  // Add purchase expense record
   state.activities.unshift({
     id: Date.now(),
     date: getTodayStr(),
@@ -1151,6 +1188,10 @@ function submitCurrencySelect() {
     return;
   }
   state.selectedCurrencies = checked.slice(0, 6);
+  // Bug #6 fix: tell the user if their selection was trimmed to the max of 6
+  if (checked.length > 6) {
+    showToast("En fazla 6 döviz seçilebilir, ilk 6 kaydedildi.", "⚠️");
+  }
   closeModal('modal-currency-select');
   renderHomeMarketRates();
   showToast("Döviz görünümü güncellendi", "💱");
@@ -1172,7 +1213,26 @@ function showDayActivities(dateStr) {
   const list = state.activities.filter(a => a.date === dateStr);
   if (list.length === 0) {
     showToast(`${dateStr} tarihinde işlem kaydı yok`, "📅");
-  } else {
-    alert(`${dateStr} İşlemleri:\n` + list.map(a => `• ${a.description}: ${a.type === 'gelir' ? '+' : '-'}${formatTry(a.amount)}`).join('\n'));
+    return;
   }
+  // Bug #7 fix: use a modal instead of alert()
+  const body = list.map(a =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:white;border-radius:14px;border:1px solid #E2E8F0;margin-bottom:8px;">
+       <div>
+         <div style="font-size:13px;font-weight:700;">${a.description}</div>
+         <div style="font-size:11px;color:var(--gray);">${a.category}</div>
+       </div>
+       <div style="font-weight:800;font-size:14px;color:${a.type === 'gelir' ? 'var(--green)' : 'var(--coral)'}">
+         ${a.type === 'gelir' ? '+' : '-'}${formatTry(a.amount)}
+       </div>
+     </div>`
+  ).join('');
+
+  document.getElementById('goal-detail-title').textContent = `📅 ${dateStr} İşlemleri`;
+  document.getElementById('goal-detail-status-badge').textContent = `${list.length} işlem`;
+  document.getElementById('goal-detail-status-badge').style.background = 'rgba(99,102,241,0.1)';
+  document.getElementById('goal-detail-status-badge').style.color = 'var(--primary)';
+  document.getElementById('goal-detail-body').innerHTML =
+    `<div style="display:flex;flex-direction:column;gap:0;max-height:320px;overflow-y:auto;">${body}</div>`;
+  openModal('modal-goal-detail');
 }

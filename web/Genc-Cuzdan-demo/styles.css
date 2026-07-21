@@ -130,13 +130,19 @@ body {
 .nav-item.active span { color: var(--primary); font-weight:700; }
 
 .main-content {
-  margin-left: 88px;
   flex: 1;
   max-width: 920px;
   margin-left: auto;
   margin-right: auto;
   padding: 28px 24px 100px;
   width: 100%;
+}
+
+/* Desktop: reserve space for the fixed sidebar (88 px wide) */
+@media (min-width: 841px) {
+  .main-content {
+    padding-left: calc(88px + 24px);
+  }
 }
 
 .page { display:none; animation: fadeIn 0.25s ease; }

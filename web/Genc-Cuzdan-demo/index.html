@@ -8,6 +8,7 @@
   <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
   <link rel="apple-touch-icon" href="assets/logo.svg" />
   <meta name="description" content="Genç Cüzdan Demo">
+  <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#4F46E5">
   <link rel="stylesheet" href="styles.css">
   <!-- Canvas Confetti CDN -->
@@ -165,7 +166,7 @@
         <div class="section">
           <div class="calendar-card">
             <div class="calendar-header">
-              <div class="calendar-title" id="calendar-month-title">Temmuz 2026</div>
+              <div class="calendar-title" id="calendar-month-title"></div>
               <div class="calendar-nav">
                 <button onclick="changeCalendarMonth(-1)">❮</button>
                 <button onclick="changeCalendarMonth(1)">❯</button>
@@ -222,7 +223,7 @@
         <div class="stat-cards">
           <div class="stat-card">
             <div class="stat-row">
-              <div class="stat-icon" style="background:#D1FAE5; color:#10B981;">↓</div>
+              <div class="stat-icon" style="background:#D1FAE5; color:#10B981;">↑</div>
               <div>
                 <div class="stat-label">Aylık Gelir</div>
                 <div class="stat-value" id="wallet-inc-total">₺0</div>
@@ -231,7 +232,7 @@
           </div>
           <div class="stat-card">
             <div class="stat-row">
-              <div class="stat-icon" style="background:#FEE2E2; color:#EF4444;">↑</div>
+              <div class="stat-icon" style="background:#FEE2E2; color:#EF4444;">↓</div>
               <div>
                 <div class="stat-label">Aylık Gider</div>
                 <div class="stat-value" id="wallet-exp-total">₺0</div>

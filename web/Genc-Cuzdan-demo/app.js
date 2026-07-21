@@ -708,10 +708,11 @@ function filterTerms(val) {
 function renderProfile() {
   document.getElementById('profile-input-name').value = state.user.name || '';
   document.getElementById('profile-input-salary').value = state.user.salary || '';
-  const avatarImg = document.getElementById('profile-avatar-img');
-  if (avatarImg) {
-    avatarImg.src = 'assets/profile.svg';
-  }
+  
+  ['profile-avatar-img', 'home-user-avatar-img'].forEach(id => {
+    const img = document.getElementById(id);
+    if (img) img.src = 'assets/profile.svg';
+  });
 
   renderProfileBadges();
 }

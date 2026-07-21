@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html lang="tr">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Genç Cüzdan — Bütçe ve Hedef Yönetimi</title>
-  <link rel="icon" type="image/svg+xml" href="assets/logo.svg"/>
-  <link rel="apple-touch-icon" href="assets/logo.svg"/>
-  <meta name="description" content="Genç Cüzdan - Akıllı bütçe, birikim ve finansal hedef yönetimi.">
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+  <link rel="apple-touch-icon" href="assets/logo.svg" />
+  <meta name="description" content="Genç Cüzdan Demo">
   <meta name="theme-color" content="#4F46E5">
   <link rel="stylesheet" href="styles.css">
   <!-- Canvas Confetti CDN -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 </head>
+
 <body>
 
   <div class="app-shell">
@@ -23,23 +25,37 @@
 
       <nav class="nav-items">
         <button class="nav-item active" data-tab="home" onclick="switchTab('home')">
-          <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+          </svg>
           <span>Anasayfa</span>
         </button>
         <button class="nav-item" data-tab="wallet" onclick="switchTab('wallet')">
-          <svg viewBox="0 0 24 24"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8z"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8z" />
+          </svg>
           <span>Cüzdan</span>
         </button>
         <button class="nav-item" data-tab="ai" onclick="switchTab('ai')">
-          <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 1 10 10c0 5.5-4.5 10-10 10S2 17.5 2 12A10 10 0 0 1 12 2zm0 3a7 7 0 0 0-7 7c0 3.8 3.1 7 7 7s7-3.2 7-7a7 7 0 0 0-7-7z"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M12 2a10 10 0 0 1 10 10c0 5.5-4.5 10-10 10S2 17.5 2 12A10 10 0 0 1 12 2zm0 3a7 7 0 0 0-7 7c0 3.8 3.1 7 7 7s7-3.2 7-7a7 7 0 0 0-7-7z" />
+          </svg>
           <span>AI Asistan</span>
         </button>
         <button class="nav-item" data-tab="terms" onclick="switchTab('terms')">
-          <svg viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z" />
+          </svg>
           <span>Terimler</span>
         </button>
         <button class="nav-item" data-tab="profile" onclick="switchTab('profile')">
-          <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+          </svg>
           <span>Profil</span>
         </button>
       </nav>
@@ -48,23 +64,37 @@
     <!-- Bottom Nav (Mobile) -->
     <nav class="bottom-nav">
       <button class="nav-item active" data-tab="home" onclick="switchTab('home')">
-        <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        <svg viewBox="0 0 24 24">
+          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+        </svg>
         <span>Anasayfa</span>
       </button>
       <button class="nav-item" data-tab="wallet" onclick="switchTab('wallet')">
-        <svg viewBox="0 0 24 24"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8z"/></svg>
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8z" />
+        </svg>
         <span>Cüzdan</span>
       </button>
       <button class="nav-item" data-tab="ai" onclick="switchTab('ai')">
-        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 1 10 10c0 5.5-4.5 10-10 10S2 17.5 2 12A10 10 0 0 1 12 2zm0 3a7 7 0 0 0-7 7c0 3.8 3.1 7 7 7s7-3.2 7-7a7 7 0 0 0-7-7z"/></svg>
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M12 2a10 10 0 0 1 10 10c0 5.5-4.5 10-10 10S2 17.5 2 12A10 10 0 0 1 12 2zm0 3a7 7 0 0 0-7 7c0 3.8 3.1 7 7 7s7-3.2 7-7a7 7 0 0 0-7-7z" />
+        </svg>
         <span>AI Asistan</span>
       </button>
       <button class="nav-item" data-tab="terms" onclick="switchTab('terms')">
-        <svg viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z" />
+        </svg>
         <span>Terimler</span>
       </button>
       <button class="nav-item" data-tab="profile" onclick="switchTab('profile')">
-        <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+        </svg>
         <span>Profil</span>
       </button>
     </nav>
@@ -80,7 +110,7 @@
             <div class="heading heading-xl" id="home-welcome-name">Demo Kullanıcı</div>
           </div>
           <div class="user-badge-header" onclick="switchTab('profile')" style="cursor:pointer;">
-            <img src="assets/profile.svg" alt="Profil Avatarı" class="user-avatar-small">
+            <img id="home-user-avatar-img" src="assets/profile.svg" alt="Profil Avatarı" class="user-avatar-small">
             <span style="font-size:13px; font-weight:700; color:var(--black);">Hesabım</span>
           </div>
         </div>
@@ -105,19 +135,26 @@
           <div class="action-cards">
             <button class="action-card" onclick="openAddTransactionModal()">
               <div class="icon-circle" style="background:rgba(99,102,241,0.1); color:var(--primary);">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
               </div>
               <span>Gelir/Gider Ekle</span>
             </button>
             <button class="action-card" onclick="openQuickExpenseModal()">
               <div class="icon-circle" style="background:rgba(245,158,11,0.1); color:var(--orange);">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7 2v11h3v9l7-12h-4l4-8z" />
+                </svg>
               </div>
               <span>Kayıtlı Gider</span>
             </button>
             <button class="action-card" onclick="openAddGoalModal()">
               <div class="icon-circle" style="background:rgba(239,68,68,0.1); color:var(--coral);">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8 8z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path
+                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8 8z" />
+                </svg>
               </div>
               <span>Yeni Hedef</span>
             </button>
@@ -239,12 +276,14 @@
           <div class="subheading" style="margin-bottom:16px;">Hedefler Özeti</div>
           <div class="card" style="display:flex; justify-content:space-around; text-align:center; padding:20px;">
             <div>
-              <div style="font-size:26px; font-weight:800; color:var(--primary);" id="goals-summary-active-count">0</div>
+              <div style="font-size:26px; font-weight:800; color:var(--primary);" id="goals-summary-active-count">0
+              </div>
               <div style="font-size:12px; color:var(--gray); font-weight:600;">Aktif Hedef</div>
             </div>
             <div style="width:1px; background:#E2E8F0;"></div>
             <div>
-              <div style="font-size:26px; font-weight:800; color:var(--green);" id="goals-summary-completed-count">0</div>
+              <div style="font-size:26px; font-weight:800; color:var(--green);" id="goals-summary-completed-count">0
+              </div>
               <div style="font-size:12px; color:var(--gray); font-weight:600;">Tamamlanan</div>
             </div>
           </div>
@@ -280,16 +319,22 @@
           <div style="padding:10px 20px; background:var(--white); border-top:1px solid #E2E8F0;">
             <div style="font-size:11px; font-weight:700; color:var(--gray); margin-bottom:6px;">Önerilen Sorular:</div>
             <div class="suggestion-chips">
-              <div class="suggestion-chip" onclick="sendChatMessage('Tasarruf nasıl yapılır?')">💡 Tasarruf nasıl yapılır?</div>
-              <div class="suggestion-chip" onclick="sendChatMessage('Enflasyondan nasıl korunurum?')">📈 Enflasyondan korunma</div>
-              <div class="suggestion-chip" onclick="sendChatMessage('Kredi kartı borcunu nasıl yönetirim?')">💳 Kredi kartı yönetimi</div>
-              <div class="suggestion-chip" onclick="sendChatMessage('Yatırım araçları nelerdir?')">🏦 Yatırım araçları</div>
+              <div class="suggestion-chip" onclick="sendChatMessage('Tasarruf nasıl yapılır?')">💡 Tasarruf nasıl
+                yapılır?</div>
+              <div class="suggestion-chip" onclick="sendChatMessage('Enflasyondan nasıl korunurum?')">📈 Enflasyondan
+                korunma</div>
+              <div class="suggestion-chip" onclick="sendChatMessage('Kredi kartı borcunu nasıl yönetirim?')">💳 Kredi
+                kartı yönetimi</div>
+              <div class="suggestion-chip" onclick="sendChatMessage('Yatırım araçları nelerdir?')">🏦 Yatırım araçları
+              </div>
             </div>
           </div>
 
           <div class="chat-input-bar">
-            <input type="text" id="chat-input-field" class="chat-input" placeholder="Finansal sorunuzu yazın..." onkeypress="if(event.key==='Enter') sendChatMessage()">
-            <button class="btn btn-primary" style="padding:14px 20px; border-radius:50px;" onclick="sendChatMessage()">Gönder</button>
+            <input type="text" id="chat-input-field" class="chat-input" placeholder="Finansal sorunuzu yazın..."
+              onkeypress="if(event.key==='Enter') sendChatMessage()">
+            <button class="btn btn-primary" style="padding:14px 20px; border-radius:50px;"
+              onclick="sendChatMessage()">Gönder</button>
           </div>
         </div>
       </section>
@@ -304,7 +349,8 @@
           </div>
         </div>
 
-        <input type="text" class="terms-search" placeholder="Terim veya kelime ara..." oninput="filterTerms(this.value)">
+        <input type="text" class="terms-search" placeholder="Terim veya kelime ara..."
+          oninput="filterTerms(this.value)">
 
         <div id="terms-list-container">
           <!-- Dynamic Terms -->
@@ -330,13 +376,15 @@
             <label>Aylık Gelir / Harçlık (₺)</label>
             <input type="number" id="profile-input-salary" value="3500">
           </div>
-          <button class="btn btn-primary" style="width:100%;" onclick="saveProfileChanges()">Değişiklikleri Kaydet</button>
+          <button class="btn btn-primary" style="width:100%;" onclick="saveProfileChanges()">Değişiklikleri
+            Kaydet</button>
         </div>
 
         <!-- Badges Section -->
         <div class="card" style="margin-bottom:24px;">
           <div class="subheading" style="font-size:16px; margin-bottom:4px;">Başarı Rozetleri</div>
-          <div style="font-size:12px; color:var(--gray); margin-bottom:20px;">Tamamlanan hedeflere göre açılan rozetler.</div>
+          <div style="font-size:12px; color:var(--gray); margin-bottom:20px;">Tamamlanan hedeflere göre açılan rozetler.
+          </div>
           <div class="badges-grid" id="badges-grid-container">
             <!-- Dynamic Badges -->
           </div>
@@ -353,7 +401,8 @@
     <div class="modal">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
         <h2 id="goal-detail-title" style="margin-bottom:0;">Hedef Detayı</h2>
-        <span id="goal-detail-status-badge" style="font-size:12px; padding:4px 10px; border-radius:12px; font-weight:700;"></span>
+        <span id="goal-detail-status-badge"
+          style="font-size:12px; padding:4px 10px; border-radius:12px; font-weight:700;"></span>
       </div>
       <div id="goal-detail-body"></div>
       <div class="modal-actions" style="margin-top:20px;">
@@ -498,7 +547,8 @@
       <form onsubmit="submitFundGoal(event)">
         <div class="form-group">
           <label>Hedef</label>
-          <input type="text" id="fund-goal-title-display" readonly style="background:var(--light-gray); font-weight:700;">
+          <input type="text" id="fund-goal-title-display" readonly
+            style="background:var(--light-gray); font-weight:700;">
         </div>
         <div class="form-group">
           <label>Kullanılacak Varlık</label>
@@ -507,7 +557,8 @@
         <div class="form-group">
           <label>Aktarılacak Tutar (₺)</label>
           <input type="number" step="0.01" id="fund-amount-input" required placeholder="0.00">
-          <div id="fund-remaining-hint" style="font-size:12px; color:var(--gray); margin-top:4px; font-weight:600;"></div>
+          <div id="fund-remaining-hint" style="font-size:12px; color:var(--gray); margin-top:4px; font-weight:600;">
+          </div>
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-cancel" onclick="closeModal('modal-fund-goal')">İptal</button>
@@ -574,7 +625,8 @@
     <div class="modal">
       <h2>Anasayfada Görünecek Kurlar</h2>
       <p style="font-size:13px; color:var(--gray); margin-bottom:16px;">En fazla 6 adet seçebilirsiniz:</p>
-      <div id="currency-options-checkboxes" style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;"></div>
+      <div id="currency-options-checkboxes" style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+      </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-cancel" onclick="closeModal('modal-currency-select')">İptal</button>
         <button type="button" class="btn btn-primary" onclick="submitCurrencySelect()">Kaydet</button>
@@ -588,17 +640,26 @@
       <h2>Yatırım Risk Profili Testi</h2>
       <p style="font-size:14px; color:var(--gray); margin-bottom:20px;">Size en uygun olan stratejiyi seçin:</p>
       <div style="display:flex; flex-direction:column; gap:12px;">
-        <button class="btn btn-secondary" style="text-align:left; flex-direction:column; align-items:flex-start; padding:16px;" onclick="submitInvestmentTest('korumacı')">
+        <button class="btn btn-secondary"
+          style="text-align:left; flex-direction:column; align-items:flex-start; padding:16px;"
+          onclick="submitInvestmentTest('korumacı')">
           <span style="font-weight:800; color:var(--primary);">🛡️ Korumacı Profil</span>
-          <span style="font-size:12px; font-weight:500; color:var(--gray);">Ana paramı korumak en önemlisi. Düşük risk tercih ederim.</span>
+          <span style="font-size:12px; font-weight:500; color:var(--gray);">Ana paramı korumak en önemlisi. Düşük risk
+            tercih ederim.</span>
         </button>
-        <button class="btn btn-secondary" style="text-align:left; flex-direction:column; align-items:flex-start; padding:16px;" onclick="submitInvestmentTest('dengeli')">
+        <button class="btn btn-secondary"
+          style="text-align:left; flex-direction:column; align-items:flex-start; padding:16px;"
+          onclick="submitInvestmentTest('dengeli')">
           <span style="font-weight:800; color:var(--orange);">⚖️ Dengeli Profil</span>
-          <span style="font-size:12px; font-weight:500; color:var(--gray);">Makul bir büyüme için sınırlı risk alabilirim.</span>
+          <span style="font-size:12px; font-weight:500; color:var(--gray);">Makul bir büyüme için sınırlı risk
+            alabilirim.</span>
         </button>
-        <button class="btn btn-secondary" style="text-align:left; flex-direction:column; align-items:flex-start; padding:16px;" onclick="submitInvestmentTest('agresif')">
+        <button class="btn btn-secondary"
+          style="text-align:left; flex-direction:column; align-items:flex-start; padding:16px;"
+          onclick="submitInvestmentTest('agresif')">
           <span style="font-weight:800; color:var(--coral);">🚀 Agresif Büyüme</span>
-          <span style="font-size:12px; font-weight:500; color:var(--gray);">Yüksek getiri potansiyeli için yüksek riski kabul ederim.</span>
+          <span style="font-size:12px; font-weight:500; color:var(--gray);">Yüksek getiri potansiyeli için yüksek riski
+            kabul ederim.</span>
         </button>
       </div>
       <div class="modal-actions" style="margin-top:20px;">
@@ -614,4 +675,5 @@
   <script src="app.js"></script>
 
 </body>
+
 </html>

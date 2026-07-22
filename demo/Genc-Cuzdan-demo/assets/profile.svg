@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="100%" height="100%">
+  <!-- Soft Natural Background -->
+  <circle cx="128" cy="128" r="128" fill="#EEF2FF"/>
+
+  <g transform="translate(0, 8)">
+    <!-- Shoulders / Sweater -->
+    <path d="M48 210 C48 165 84 145 128 145 C172 145 208 165 208 210 Z" fill="#4F46E5"/>
+
+    <!-- Neck -->
+    <rect x="112" y="125" width="32" height="30" rx="8" fill="#FDBA74"/>
+
+    <!-- Head -->
+    <circle cx="128" cy="95" r="42" fill="#FDBA74"/>
+
+    <!-- Hair (Natural Minimalist Silhouette) -->
+    <path d="M86 95 C82 62 100 48 128 48 C156 48 174 62 170 95 C164 72 152 56 128 56 C104 56 92 72 86 95 Z" fill="#1E293B"/>
+
+    <!-- Simple Minimal Eyes -->
+    <circle cx="112" cy="94" r="3.5" fill="#1E293B"/>
+    <circle cx="144" cy="94" r="3.5" fill="#1E293B"/>
+
+    <!-- Simple Natural Smile -->
+    <path d="M118 110 Q128 117 138 110" fill="none" stroke="#1E293B" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>

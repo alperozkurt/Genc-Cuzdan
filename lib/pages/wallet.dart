@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
 import '../services/market_service.dart';
 import 'package:intl/intl.dart';
@@ -72,7 +73,7 @@ class _WalletPageState extends State<WalletPage> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading wallet data: $e');
+      if (kDebugMode) debugPrint('Error loading wallet data: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -105,55 +106,118 @@ class _WalletPageState extends State<WalletPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: DesignSystem.background,
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSavingDialog,
-        backgroundColor: DesignSystem.primaryIndigo,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      body: SafeArea(
-        child: _isLoading 
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadData,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // HEADER SECTION: Avatar + Greeting + Balance (Component Pattern)
-                    _buildOverviewSection(),
-
-                    const SizedBox(height: 32),
-
-                    Text('Varlıklarım', style: DesignSystem.subheading()),
-                    const SizedBox(height: 16),
-                    _buildSavingsList(),
-
-                    const SizedBox(height: 32),
-
-                    Text('Hedefler Özeti', style: DesignSystem.subheading()),
-                    const SizedBox(height: 16),
-                    _buildGoalsSummaryCard(),
-
-                    const SizedBox(height: 32),
-
-                    // INVESTMENT SECTION
-                    Text('Yatırım Stratejisi', style: DesignSystem.subheading()),
-                    const SizedBox(height: 16),
-
-                    if (widget.investmentProfile == null)
-                      _buildEmptyStateCard()
-                    else
-                      _buildInvestorProfileSection(),
-
-                    const SizedBox(height: 32), // Bottom spacing for FAB
-                  ],
-                ),
+    return _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : RefreshIndicator(
+            onRefresh: _loadData,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isDesktop = constraints.maxWidth > 700;
+                  if (isDesktop) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildOverviewSection(),
+                        const SizedBox(height: 24),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Left: savings
+                            Expanded(
+                              flex: 55,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildWalletSectionHeader('Varlıklarım', Icons.account_balance_wallet_rounded),
+                                  const SizedBox(height: 12),
+                                  _buildSavingsList(),
+                                  const SizedBox(height: 12),
+                                  _buildAddSavingButton(),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            // Right: goals + investment
+                            Expanded(
+                              flex: 45,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildWalletSectionHeader('Hedefler Özeti', Icons.track_changes_rounded),
+                                  const SizedBox(height: 12),
+                                  _buildGoalsSummaryCard(),
+                                  const SizedBox(height: 20),
+                                  _buildWalletSectionHeader('Yatırım Stratejisi', Icons.trending_up_rounded),
+                                  const SizedBox(height: 12),
+                                  if (widget.investmentProfile == null)
+                                    _buildEmptyStateCard()
+                                  else
+                                    _buildInvestorProfileSection(),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  }
+                  // Mobile: single column
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildOverviewSection(),
+                      const SizedBox(height: 24),
+                      _buildWalletSectionHeader('Varlıklarım', Icons.account_balance_wallet_rounded),
+                      const SizedBox(height: 12),
+                      _buildSavingsList(),
+                      const SizedBox(height: 12),
+                      _buildAddSavingButton(),
+                      const SizedBox(height: 24),
+                      _buildWalletSectionHeader('Hedefler Özeti', Icons.track_changes_rounded),
+                      const SizedBox(height: 12),
+                      _buildGoalsSummaryCard(),
+                      const SizedBox(height: 24),
+                      _buildWalletSectionHeader('Yatırım Stratejisi', Icons.trending_up_rounded),
+                      const SizedBox(height: 12),
+                      if (widget.investmentProfile == null)
+                        _buildEmptyStateCard()
+                      else
+                        _buildInvestorProfileSection(),
+                    ],
+                  );
+                },
               ),
             ),
+          );
+  }
+
+  Widget _buildWalletSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: DesignSystem.primaryIndigo),
+        const SizedBox(width: 8),
+        Text(title, style: DesignSystem.subheading(size: 15)),
+      ],
+    );
+  }
+
+  Widget _buildAddSavingButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _showAddSavingDialog,
+        icon: const Icon(Icons.add_rounded, size: 18),
+        label: const Text('Yeni Varlık Ekle'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: DesignSystem.primaryIndigo,
+          side: BorderSide(color: DesignSystem.primaryIndigo.withValues(alpha: 0.4), width: 1.5),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -161,25 +225,28 @@ class _WalletPageState extends State<WalletPage> {
   Widget _buildOverviewSection() {
     final breakdown = (_savingsSummary?['breakdown'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     final grandTotal = (_savingsSummary?['grand_total_try'] as num?)?.toDouble() ?? _totalBalance;
+    final income = (_summary?['monthly_income'] as num?)?.toDouble() ?? widget.monthlyIncome;
+    final expense = (_summary?['monthly_expense'] as num?)?.toDouble() ?? widget.monthlyExpense;
+    final savings = (_summary?['monthly_savings'] as num?)?.toDouble() ?? widget.monthlySavings;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Premium header card
+        // ── Main Page Matching Hero Card ────────────────────────────────
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [DesignSystem.primaryIndigo, DesignSystem.darkIndigo],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 20,
+                color: DesignSystem.primaryIndigo.withValues(alpha: 0.35),
+                blurRadius: 24,
                 offset: const Offset(0, 10),
               ),
             ],
@@ -187,45 +254,67 @@ class _WalletPageState extends State<WalletPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'TOPLAM VARLIKLAR',
-                style: GoogleFonts.manrope(
-                  color: Colors.white70,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                NumberFormat.currency(locale: 'tr_TR', symbol: '₺').format(grandTotal),
-                style: GoogleFonts.outfit(
-                  color: Colors.white,
-                  fontSize: 34,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'TOPLAM VARLIKLAR',
+                        style: GoogleFonts.manrope(
+                          color: Colors.white70,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        NumberFormat.currency(locale: 'tr_TR', symbol: '₺').format(grandTotal),
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.account_balance_wallet_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                ],
               ),
               if (breakdown.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                // Stacked currency breakdown bar
                 _buildCurrencyBreakdownBar(breakdown, grandTotal),
-                const SizedBox(height: 10),
-                // Legend chips
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 10,
                   runSpacing: 6,
                   children: breakdown.map((item) {
-                    final curr = item['currency'] as String;
-                    final tryVal = (item['total_try'] as num).toDouble();
+                    final curr = (item['currency'] ?? 'TRY').toString();
+                    final tryVal = ((item['total_try'] ?? 0) as num).toDouble();
                     final pct = grandTotal > 0 ? (tryVal / grandTotal * 100) : 0.0;
                     final meta = _getCurrencyMeta(curr);
                     return Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(width: 8, height: 8,
+                        Container(
+                          width: 8,
+                          height: 8,
                           decoration: BoxDecoration(
-                            color: curr == 'TRY' ? Colors.red : meta['color'] as Color,
+                            color: curr == 'TRY' ? Colors.white : (meta['color'] as Color? ?? Colors.blue),
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -233,7 +322,8 @@ class _WalletPageState extends State<WalletPage> {
                         Text(
                           '$curr ${pct.toStringAsFixed(0)}%',
                           style: GoogleFonts.manrope(
-                            color: Colors.white70, fontSize: 11,
+                            color: Colors.white70,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -242,43 +332,88 @@ class _WalletPageState extends State<WalletPage> {
                   }).toList(),
                 ),
               ],
+              const SizedBox(height: 20),
+              // Income, Expense, Savings Pills (Matching Home Hero Card)
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildWalletSummaryPill(
+                      label: 'Gelir',
+                      amount: income,
+                      icon: Icons.arrow_downward_rounded,
+                      color: const Color(0xFF34D399),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildWalletSummaryPill(
+                      label: 'Gider',
+                      amount: expense,
+                      icon: Icons.arrow_upward_rounded,
+                      color: const Color(0xFFFB7185),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildWalletSummaryPill(
+                      label: 'Birikim',
+                      amount: savings,
+                      icon: Icons.savings_rounded,
+                      color: const Color(0xFF818CF8),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
         const SizedBox(height: 20),
-        // Financial summary row
-        Row(
-          children: [
-            Expanded(
-              child: _buildSummaryCard(
-                title: 'Gelir',
-                amount: (_summary?['monthly_income'] as num?)?.toDouble() ?? 0,
-                icon: Icons.south_west_rounded,
-                color: const Color(0xFF2ECC71),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildSummaryCard(
-                title: 'Gider',
-                amount: (_summary?['monthly_expense'] as num?)?.toDouble() ?? 0,
-                icon: Icons.north_east_rounded,
-                color: const Color(0xFFFF6B6B),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _buildSummaryCard(
-          title: 'Aylık Net Birikim',
-          amount: (_summary?['monthly_savings'] as num?)?.toDouble() ?? 0,
-          icon: Icons.savings_outlined,
-          color: DesignSystem.primaryIndigo,
-          isFullWidth: true,
-        ),
-        const SizedBox(height: 16),
         _buildNeedsVsWantsTracker(),
       ],
+    );
+  }
+
+  Widget _buildWalletSummaryPill({
+    required String label,
+    required double amount,
+    required IconData icon,
+    required Color color,
+  }) {
+    final fmt = amount >= 1000
+        ? '${(amount / 1000).toStringAsFixed(1)}k'
+        : amount.toStringAsFixed(0);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 13),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '₺$fmt',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -365,8 +500,8 @@ class _WalletPageState extends State<WalletPage> {
       List<Map<String, dynamic>> breakdown, double grandTotal) {
     const currencyOrder = ['TRY', 'USD', 'EUR', 'GOLD'];
     final sorted = [...breakdown]..sort((a, b) {
-        final ai = currencyOrder.indexOf(a['currency'] as String);
-        final bi = currencyOrder.indexOf(b['currency'] as String);
+        final ai = currencyOrder.indexOf((a['currency'] ?? 'TRY').toString());
+        final bi = currencyOrder.indexOf((b['currency'] ?? 'TRY').toString());
         return ai.compareTo(bi);
       });
     return Container(
@@ -381,9 +516,9 @@ class _WalletPageState extends State<WalletPage> {
           height: 10,
           child: Row(
             children: sorted.map((item) {
-              final tryVal = (item['total_try'] as num).toDouble();
+              final tryVal = ((item['total_try'] ?? 0) as num).toDouble();
               final frac = grandTotal > 0 ? tryVal / grandTotal : 0.0;
-              final currency = item['currency'] as String;
+              final currency = (item['currency'] ?? 'TRY').toString();
               final meta = _getCurrencyMeta(currency);
               
               // Use white for TRY in the breakdown bar for maximum visibility on indigo
@@ -400,78 +535,16 @@ class _WalletPageState extends State<WalletPage> {
     );
   }
 
-  Widget _buildSummaryCard({
-    required String title,
-    required double amount,
-    required IconData icon,
-    required Color color,
-    bool isFullWidth = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: GoogleFonts.manrope(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[600],
-                ),
-              ),
-              Text(
-                '₺${NumberFormat('#,##0', 'tr_TR').format(amount)}',
-                style: GoogleFonts.outfit(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF2D3436),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildGoalsSummaryCard() {
     final activeGoals = widget.goals.where((g) => g['is_completed'] != true && g['is_completed'] != 1).toList();
     final completedGoals = widget.goals.where((g) => g['is_completed'] == true || g['is_completed'] == 1).toList();
 
     double totalGoalSavings = 0.0;
-    for (var activity in widget.activities) {
-      if (activity['goal_id'] != null) {
-        if (activity['type'] == 'gelir') {
-          totalGoalSavings += (activity['amount'] as num).toDouble();
-        } else if (activity['type'] == 'gider') {
-          totalGoalSavings -= (activity['amount'] as num).toDouble();
-        }
-      }
+    for (var g in widget.goals) {
+      final saved = ((g['current_amount'] ?? g['saved_amount'] ?? 0) as num).toDouble();
+      totalGoalSavings += saved;
     }
 
     // Show top 3 active goals with progress
@@ -545,9 +618,10 @@ class _WalletPageState extends State<WalletPage> {
                     size: 12, color: DesignSystem.gray, weight: FontWeight.w600)),
             const SizedBox(height: 10),
             ...topGoals.map((g) {
-              final target = (g['target_amount'] as num).toDouble();
-              final saved = (g['saved_amount'] as num?)?.toDouble() ?? 0.0;
+              final target = ((g['target_amount'] ?? 0) as num).toDouble();
+              final saved = ((g['current_amount'] ?? g['saved_amount'] ?? 0) as num).toDouble();
               final progress = target > 0 ? (saved / target).clamp(0.0, 1.0) : 0.0;
+              final titleText = (g['name'] ?? g['title'] ?? 'Hedef').toString();
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Column(
@@ -557,7 +631,7 @@ class _WalletPageState extends State<WalletPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
-                          child: Text(g['title'] as String,
+                          child: Text(titleText,
                               style: DesignSystem.body(
                                   size: 13,
                                   color: DesignSystem.black,
@@ -593,54 +667,6 @@ class _WalletPageState extends State<WalletPage> {
     );
   }
 
-  Widget _buildTransactionCard({
-    required String title,
-    required double amount,
-    required IconData icon,
-    required Color iconColor,
-    required Color bgColor,
-    bool isHorizontal = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: DesignSystem.premiumCard().boxShadow!,
-      ),
-      child: isHorizontal
-          ? Row(
-              children: [
-                _buildIconContainer(icon, iconColor),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: DesignSystem.body().copyWith(fontSize: 12)),
-                    const SizedBox(height: 4),
-                    Text(
-                      '₺${amount.toStringAsFixed(2)}',
-                      style: DesignSystem.heading(size: 24).copyWith(fontSize: 20),
-                    ),
-                  ],
-                ),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildIconContainer(icon, iconColor),
-                const SizedBox(height: 12),
-                Text(title, style: DesignSystem.body().copyWith(fontSize: 12)),
-                const SizedBox(height: 4),
-                Text(
-                  '₺${amount.toStringAsFixed(0)}',
-                  style: DesignSystem.heading(size: 24).copyWith(fontSize: 18),
-                ),
-              ],
-            ),
-    );
-  }
 
   Widget _buildIconContainer(IconData icon, Color color) {
     return Container(
@@ -995,14 +1021,14 @@ class _WalletPageState extends State<WalletPage> {
   }
 
   void _showSavingHistory(String currency, List<dynamic> items, Map<String, dynamic> meta) {
-    final color = meta['color'] as Color;
-    final symbol = meta['symbol'] as String;
-    final icon = meta['icon'] as IconData;
-    final label = meta['label'] as String;
+    final color = (meta['color'] as Color? ?? Colors.indigo);
+    final symbol = (meta['symbol'] ?? '₺').toString();
+    final icon = (meta['icon'] as IconData? ?? Icons.monetization_on);
+    final label = (meta['label'] ?? currency).toString();
 
     // Sort newest first
     final sorted = List<dynamic>.from(items)
-      ..sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
+      ..sort((a, b) => ((b['date'] ?? '').toString()).compareTo((a['date'] ?? '').toString()));
 
     showModalBottomSheet(
       context: context,
@@ -1078,7 +1104,7 @@ class _WalletPageState extends State<WalletPage> {
                     : ListView.separated(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                         itemCount: sorted.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
                           final item = sorted[index];
                           final double amount = (item['amount'] as num).toDouble();
@@ -1455,10 +1481,12 @@ class _WalletPageState extends State<WalletPage> {
                                     description: descriptionController.text.isEmpty ? 'Birikim' : descriptionController.text,
                                     date: DateFormat('yyyy-MM-dd').format(selectedDate),
                                   );
-                                  Navigator.pop(ctx);
+                                  if (ctx.mounted) Navigator.pop(ctx);
                                   _loadData();
                                 } catch (e) {
-                                  if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                                  }
                                 }
                               }
                             },
@@ -1620,7 +1648,7 @@ class _WalletPageState extends State<WalletPage> {
     final targets = ['TRY', 'USD', 'EUR', 'GOLD'].where((c) => c != fromCurrency).toList();
     String selectedTarget = targets.first;
 
-    double _previewAmount(String toCurrency) {
+    double previewAmount(String toCurrency) {
       final rate = _marketData[toCurrency == 'USD' ? 'USD/TL' : toCurrency == 'EUR' ? 'EUR/TL' : toCurrency == 'GOLD' ? 'Gram Altın' : 'TRY'] ?? 1.0;
       return toCurrency == 'TRY' ? fromAmountTry : (rate > 0 ? fromAmountTry / rate : 0);
     }
@@ -1632,7 +1660,7 @@ class _WalletPageState extends State<WalletPage> {
       builder: (ctx) => StatefulBuilder(builder: (context, setSt) {
         final toMeta = _getCurrencyMeta(selectedTarget);
         final toColor = toMeta['color'] as Color;
-        final preview = _previewAmount(selectedTarget);
+        final preview = previewAmount(selectedTarget);
         final toSymbol = toMeta['symbol'] as String;
 
         return Padding(
@@ -1727,11 +1755,15 @@ class _WalletPageState extends State<WalletPage> {
                       try {
                         await ApiService.transferSaving(fromSavingId: item['id'], toCurrency: selectedTarget);
                         if (ctx.mounted) Navigator.pop(ctx);
-                        if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(
-                          SnackBar(content: Text('${fromAmount.toStringAsFixed(2)} $fromCurrency → ${preview.toStringAsFixed(4)} $selectedTarget dönüştürüldü!'), backgroundColor: DesignSystem.secondaryGreen),
-                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('${fromAmount.toStringAsFixed(2)} $fromCurrency → ${preview.toStringAsFixed(4)} $selectedTarget dönüştürüldü!'), backgroundColor: DesignSystem.secondaryGreen),
+                          );
+                        }
                       } catch (e) {
-                        if (mounted) ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                        }
                       }
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: DesignSystem.secondaryGreen, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 0),

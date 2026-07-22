@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:my_app/pages/home.dart';
 import 'package:my_app/services/api_service.dart';
 
-void main() => runApp(const GencCuzdan());
+void main() {
+  ApiService.enableDemoMode();
+  runApp(const GencCuzdan());
+}
 
 class GencCuzdan extends StatelessWidget {
   const GencCuzdan({super.key});
